@@ -203,7 +203,8 @@ export function SharedMap({ group: filterParam }: { group?: string }) {
           )}
 
           <section className="panel">
-            <h3>כל התוצאות</h3>
+            <h3>{filter && filter !== NONE ? `כל מי שבקבוצה "${filter}"` : 'כולם'}</h3>
+            <p className="muted">כל אדם מופיע פעם אחת, גם אם הוא בכמה קבוצות. ליד כל אחד: הקבוצות שלו, הוצאה מקבוצה, והוספה לקבוצה נוספת.</p>
             <div className="matrix-wrap">
               <table className="results">
                 <thead>
@@ -264,21 +265,33 @@ export function SharedMap({ group: filterParam }: { group?: string }) {
 function GroupCell({ r, names, current }: { r: SharedResult; names: string[]; current: string }) {
   const mine = groupsOf(r);
   const options = names.filter((g) => !mine.includes(g));
+  const save = async (next: string[], msg: string) => {
+    if (await setGroupsFor(r.id, next)) toast(msg);
+  };
   return (
     <div className="group-cell">
-      <span>{mine.join(', ') || 'בלי קבוצה'}</span>
+      <div className="group-tags">
+        {mine.length === 0 && <span className="muted">בלי קבוצה</span>}
+        {mine.map((g) => (
+          <span key={g} className="group-tag">
+            {g}
+            <button type="button" className="linkish" aria-label={`הוצאת ${r.name} מהקבוצה ${g}`} onClick={() => save(mine.filter((x) => x !== g), `${r.name} הוצא מהקבוצה "${g}"`)}>
+              הוצאה
+            </button>
+          </span>
+        ))}
+      </div>
       {options.length > 0 && (
         <select
           aria-label={current ? `העברת ${r.name} לקבוצה אחרת` : `הוספת ${r.name} לקבוצה`}
           value=""
-          onChange={async (e) => {
+          onChange={(e) => {
             const g = e.target.value;
             if (!g) return;
-            const next = current ? [...mine.filter((x) => x !== current), g] : [...mine, g];
-            if (await setGroupsFor(r.id, next)) toast(current ? `${r.name} הועבר מ"${current}" ל"${g}"` : `${r.name} נוסף לקבוצה "${g}"`);
+            save(current ? [...mine.filter((x) => x !== current), g] : [...mine, g], current ? `${r.name} הועבר מ"${current}" ל"${g}"` : `${r.name} נוסף גם לקבוצה "${g}"`);
           }}
         >
-          <option value="">{current ? 'העברה לקבוצה...' : 'הוספה לקבוצה...'}</option>
+          <option value="">{current ? 'העברה לקבוצה...' : 'הוספה גם לקבוצה...'}</option>
           {options.map((g) => (
             <option key={g} value={g}>
               {g}
@@ -315,10 +328,27 @@ function GroupMembers({ group, people, names }: { group: string; people: SharedR
                 <span className="who">
                   <b>{r.name}</b>
                   {r.role && <small>{r.role}</small>}
+                  {groupsOf(r).length > 1 && <small>גם ב: {groupsOf(r).filter((g) => g !== group).join(', ')}</small>}
                 </span>
                 <button className="btn ghost xs" onClick={() => set(r, groupsOf(r).filter((g) => g !== group), `${r.name} הוצא מהקבוצה "${group}"`)}>
                   הוצאה מהקבוצה
                 </button>
+                {others.filter((g) => !groupsOf(r).includes(g)).length > 0 && (
+                  <select
+                    aria-label={`הוספת ${r.name} גם לקבוצה אחרת`}
+                    value=""
+                    onChange={(e) => e.target.value && set(r, [...groupsOf(r), e.target.value], `${r.name} נוסף גם ל"${e.target.value}", ונשאר ב"${group}"`)}
+                  >
+                    <option value="">הוספה גם ל...</option>
+                    {others
+                      .filter((g) => !groupsOf(r).includes(g))
+                      .map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                  </select>
+                )}
                 {others.length > 0 && (
                   <select
                     aria-label={`העברת ${r.name} לקבוצה אחרת`}

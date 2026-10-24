@@ -92,6 +92,7 @@ await shot(page, '03-color-blue.png');
 
 // ---------- מי אני ----------
 await page.locator('.topnav').getByRole('link', { name: 'מי אני' }).click();
+await page.locator('.how li').nth(3).waitFor();
 ok((await page.locator('.how li').count()) === 4, 'me: the intro explains each step in words');
 await page.getByRole('button', { name: 'להתחיל בניחוש' }).click();
 const plane = page.locator('.map-plane.pickable');
@@ -349,7 +350,7 @@ await page.locator('.members li', { hasText: 'נתן ש.' }).getByRole('button',
 for (let i = 0; i < 30 && natan().groups.includes('צוות התכנון'); i++) await page.waitForTimeout(100);
 ok(JSON.stringify(natan().groups) === JSON.stringify(['משפחה']), 'groups: remove a person from a group');
 await page.goto(BASE + '/#/map/' + encodeURIComponent('משפחה'));
-await page.locator('.members li', { hasText: 'נתן ש.' }).locator('select').selectOption('צוות התכנון');
+await page.locator('.members').getByLabel('העברת נתן ש. לקבוצה אחרת').selectOption('צוות התכנון');
 for (let i = 0; i < 30 && !natan().groups.includes('צוות התכנון'); i++) await page.waitForTimeout(100);
 ok(JSON.stringify(natan().groups) === JSON.stringify(['צוות התכנון']), 'groups: move a person from one group to another');
 await page.getByRole('radio', { name: /כולם/ }).click();
@@ -357,6 +358,14 @@ ok((await page.locator('.results tbody tr').count()) === 2, 'groups: "everyone" 
 await page.locator('.results tr', { hasText: 'נתן ש.' }).locator('select').selectOption('משפחה');
 for (let i = 0; i < 30 && natan().groups.length < 2; i++) await page.waitForTimeout(100);
 ok(JSON.stringify(natan().groups) === JSON.stringify(['צוות התכנון', 'משפחה']), 'groups: add to a group from the everyone table');
+ok((await page.locator('.results tbody tr', { hasText: 'נתן ש.' }).count()) === 1, 'groups: someone in two groups appears once in everyone');
+await page.getByRole('button', { name: 'הוצאת נתן ש. מהקבוצה צוות התכנון' }).click();
+for (let i = 0; i < 30 && natan().groups.length > 1; i++) await page.waitForTimeout(100);
+ok(JSON.stringify(natan().groups) === JSON.stringify(['משפחה']), 'groups: remove from one group in the everyone table');
+await page.goto(BASE + '/#/map/' + encodeURIComponent('משפחה'));
+await page.locator('.members').getByLabel('הוספת נתן ש. גם לקבוצה אחרת').selectOption('צוות התכנון');
+for (let i = 0; i < 30 && natan().groups.length < 2; i++) await page.waitForTimeout(100);
+ok(JSON.stringify(natan().groups) === JSON.stringify(['משפחה', 'צוות התכנון']), 'groups: add to another group from a group page, staying in this one');
 await page.getByRole('radio', { name: /כולם/ }).click();
 ok((await page.locator('.hist-col').count()) === 4 && (await page.locator('.radar').count()) === 1, 'shared: intensity histogram and group radar');
 await shot(page, '13-shared-map.png');
@@ -372,9 +381,14 @@ await page.locator('.how').waitFor();
 await page.getByRole('button', { name: 'ישר לשאלות' }).click();
 await answerAll(page, SELF, 1);
 await page.getByLabel('השם והתפקיד שלי על המפה').fill('אבישג');
+await page.locator('.pick-groups').getByRole('button', { name: 'משפחה' }).click();
+await page.locator('.pick-groups').getByRole('button', { name: 'צוות התכנון' }).click();
+await page.getByLabel('קבוצה חדשה').fill("מש' שטיבלמן");
 await page.getByRole('button', { name: 'להוסיף אותי למפה' }).click();
 await page.getByText('מופיע במפה הכללית').waitFor();
 ok(db.idiot_results.some((r) => r.name === 'ענת') && db.idiot_results.some((r) => r.name === 'אבישג'), 'me: a second person on the same device gets their own row, the first stays');
+for (let i = 0; i < 30 && (db.idiot_results.find((r) => r.name === 'אבישג')?.groups ?? []).length < 3; i++) await page.waitForTimeout(100);
+ok(JSON.stringify(db.idiot_results.find((r) => r.name === 'אבישג').groups) === JSON.stringify(['משפחה', 'צוות התכנון', "מש' שטיבלמן"]) && db.idiot_groups.some((g) => g.name === "מש' שטיבלמן"), 'me: choose several groups and open a new one right in the name form');
 await page.goto(BASE + '/#/map');
 await page.getByRole('radio', { name: /כולם/ }).click();
 await page.locator('.results tbody tr').nth(2).waitFor();

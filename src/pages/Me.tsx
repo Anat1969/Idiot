@@ -6,11 +6,11 @@ import { COLORS } from '../data/starter';
 import { selfQuestions } from '../data/traits';
 import { colorAt, fit, gap, gapText, modelTraits, ranked, score, similarity } from '../lib/engine';
 import { averageTraits, fullTraits } from '../lib/compare';
-import { publishMe, removeMe } from '../lib/shared';
+import { createGroup, publishMe, removeMe } from '../lib/shared';
 import { Explain, TraitBars, TraitRadar } from '../components/Traits';
 import { traitInfo } from '../data/traits';
 import { confirmAction, toast } from '../lib/feedback';
-import { addReading, groupsOf, newIdentity, setMyName, useStore } from '../lib/store';
+import { addReading, groupsOf, newIdentity, setMyGroups, setMyName, useStore } from '../lib/store';
 import { blend, coords, toneStyle } from '../lib/color';
 import { copyText, describe } from '../lib/text';
 import type { Color, Point, Reading } from '../lib/types';
@@ -138,6 +138,10 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
   const myGroups = useStore((s) => s.myGroups);
   const [name, setName] = useState(myName);
   const [myRoleDraft, setMyRoleDraft] = useState(myRole);
+  const allGroups = useStore((s) => s.groups);
+  const [pickedGroups, setPickedGroups] = useState<string[]>(myGroups);
+  const [newGroup, setNewGroup] = useState('');
+  const groupNames = [...new Set([...allGroups.map((g) => g.name), ...shared.flatMap(groupsOf), ...myGroups])];
   const [model, setModel] = useState<Color | null>(null);
   const r = readings[0];
   if (!r) return null;
@@ -237,14 +241,20 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
           </div>
           <form
             className="name-row"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               // בלי שם אין מה להוסיף. הכפתור לא מסיר אף פעם: הסרה נמצאת בנפרד, עם אישור
               if (!name.trim()) return toast('כתבו שם כדי להופיע במפה הכללית', 'error');
               const first = !myShared || optOut;
               setMyName(name, myRoleDraft);
+              setMyGroups(pickedGroups);
               toast(first ? `${name.trim()} נוסף למפה הכללית` : 'הפרטים עודכנו במפה הכללית');
-              publishMe();
+              // קבוצה חדשה נפתחת ומצרפת אותי, ושולחת את הכול. אחרת שולחים כאן
+              if (newGroup.trim()) {
+                const g = newGroup.trim();
+                setNewGroup('');
+                if (await createGroup(g, '')) setPickedGroups((p) => [...new Set([...p, g])]);
+              } else publishMe();
             }}
           >
             <label htmlFor="my-name">השם והתפקיד שלי על המפה</label>
@@ -252,6 +262,28 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
             <div className="row">
               <input id="my-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: ענת" maxLength={40} />
               <input id="my-role" value={myRoleDraft} onChange={(e) => setMyRoleDraft(e.target.value)} placeholder="תפקיד, למשל: אדריכלית" maxLength={60} aria-label="התפקיד שלי" />
+            </div>
+            <fieldset className="pick-groups">
+              <legend>הקבוצות שלי {pickedGroups.length > 0 && <span className="mono">({pickedGroups.length})</span>}</legend>
+              <span className="form-help">אפשר לבחור כמה קבוצות. במפה של כולם תופיעו פעם אחת, ובמפה של כל קבוצה שבחרתם, גם.</span>
+              {groupNames.length > 0 && (
+                <div className="chips">
+                  {groupNames.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      className={`chip-btn ${pickedGroups.includes(g) ? 'on' : ''}`}
+                      aria-pressed={pickedGroups.includes(g)}
+                      onClick={() => setPickedGroups((p) => (p.includes(g) ? p.filter((x) => x !== g) : [...p, g]))}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="או קבוצה חדשה, למשל: מש' שטיבלמן" maxLength={40} aria-label="קבוצה חדשה" />
+            </fieldset>
+            <div className="row">
               <button className="btn solid sm" type="submit" disabled={!name.trim()}>
                 {myShared && !optOut ? 'עדכון הפרטים' : 'להוסיף אותי למפה'}
               </button>

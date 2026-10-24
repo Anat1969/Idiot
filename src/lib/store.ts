@@ -170,6 +170,12 @@ export function joinGroup(name: string) {
   setState({ myGroups: [...state.myGroups, g].slice(0, 10), group: g, publishPending: true });
 }
 
+/** בחירת הקבוצות שלי בבת אחת (מטופס השם והתפקיד) */
+export function setMyGroups(list: string[]) {
+  const clean = [...new Set(list.map((g) => g.trim()).filter(Boolean))].slice(0, 10);
+  setState({ myGroups: clean, group: clean[0] ?? '', publishPending: true });
+}
+
 export function leaveGroup(name: string) {
   setState({ myGroups: state.myGroups.filter((g) => g !== name), group: state.group === name ? '' : state.group, publishPending: true });
 }
