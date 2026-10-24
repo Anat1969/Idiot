@@ -12,11 +12,12 @@ export function Home() {
   const people = useStore((s) => s.people);
   const teams = useStore((s) => s.teams);
   const myName = useStore((s) => s.myName);
+  const myRole = useStore((s) => s.myRole);
   const shared = useStore((s) => s.shared);
 
   const dots: Dot[] = [
-    ...people.map((p) => ({ id: p.id, label: p.name, x: p.x, y: p.y, kind: 'person' as const, href: `#/people/${p.id}` })),
-    ...(reading ? [{ id: 'me', label: myName || 'אני', x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
+    ...people.map((p) => ({ id: p.id, label: p.name, sub: p.role, x: p.x, y: p.y, kind: 'person' as const, href: `#/people/${p.id}` })),
+    ...(reading ? [{ id: 'me', label: myName || 'אני', sub: myRole, x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
   ];
 
   const routes = [

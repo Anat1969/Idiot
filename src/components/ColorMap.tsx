@@ -4,7 +4,7 @@ import { blend } from '../lib/color';
 import { useStore } from '../lib/store';
 import type { Color, Point } from '../lib/types';
 
-export type Dot = Point & { id: string; label: string; kind: 'me' | 'person' | 'guess'; href?: string };
+export type Dot = Point & { id: string; label: string; sub?: string; kind: 'me' | 'person' | 'guess'; href?: string };
 export type Link = { from: string; to: string; label?: string };
 
 // סדר הרבעים ברשת שמאל לימין: אדום וצהוב למעלה, כחול וירוק למטה, תואם למיקום הנקודות
@@ -110,7 +110,10 @@ export function ColorMap({
             const body = (
               <>
                 <i />
-                <b>{d.label}</b>
+                <span className="pill">
+                  <b>{d.label}</b>
+                  {d.sub && <small>{d.sub}</small>}
+                </span>
               </>
             );
             return (
@@ -123,7 +126,7 @@ export function ColorMap({
                 transition={{ delay: 0.15 + i * 0.05, type: 'spring', stiffness: 260, damping: 18 }}
               >
                 {d.href ? (
-                  <a href={d.href} onPointerDown={(e) => e.stopPropagation()} aria-label={d.label}>
+                  <a href={d.href} onPointerDown={(e) => e.stopPropagation()} aria-label={d.sub ? `${d.label}, ${d.sub}` : d.label}>
                     {body}
                   </a>
                 ) : (

@@ -75,6 +75,7 @@ function Brief({ personId, goal }: { personId: string; goal: GoalKey }) {
   const person = useStore((s) => s.people.find((p) => p.id === personId))!;
   const reading = useStore((s) => s.readings[0]);
   const myName = useStore((s) => s.myName) || 'אני';
+  const myRole = useStore((s) => s.myRole);
   const { main, line } = describe(lib, person);
   const key = `${goal}-${main.color}`;
   const advice = lib.goals[key];
@@ -145,8 +146,8 @@ function Brief({ personId, goal }: { personId: string; goal: GoalKey }) {
           size="sm"
           legend={false}
           dots={[
-            ...(reading ? [{ id: 'me', label: myName, kind: 'me' as const, x: reading.x, y: reading.y }] : []),
-            { id: person.id, label: person.name, kind: 'person' as const, x: person.x, y: person.y },
+            ...(reading ? [{ id: 'me', label: myName, sub: myRole, kind: 'me' as const, x: reading.x, y: reading.y }] : []),
+            { id: person.id, label: person.name, sub: person.role, kind: 'person' as const, x: person.x, y: person.y },
           ]}
           links={reading ? [{ from: 'me', to: person.id }] : []}
         />

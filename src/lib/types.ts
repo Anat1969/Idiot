@@ -69,6 +69,7 @@ export type Person = Point & {
 export type SharedResult = Point & {
   id: string;
   name: string;
+  role: string;
   group_name: string;
   mix: Partial<Record<Color, number>>;
   traits: Partial<Traits>;

@@ -37,10 +37,11 @@ function PeopleList() {
   const people = useStore((s) => s.people);
   const reading = useStore((s) => s.readings[0]);
   const myName = useStore((s) => s.myName);
+  const myRole = useStore((s) => s.myRole);
   const file = useRef<HTMLInputElement>(null);
   const dots: Dot[] = [
-    ...people.map((p) => ({ id: p.id, label: p.name, x: p.x, y: p.y, kind: 'person' as const, href: `#/people/${p.id}` })),
-    ...(reading ? [{ id: 'me', label: myName || 'אני', x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
+    ...people.map((p) => ({ id: p.id, label: p.name, sub: p.role, x: p.x, y: p.y, kind: 'person' as const, href: `#/people/${p.id}` })),
+    ...(reading ? [{ id: 'me', label: myName || 'אני', sub: myRole, x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
   ];
 
   const download = () => {
@@ -198,7 +199,7 @@ function AddPerson() {
       {mode === 'map' && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <p className="lead">לחצו במקום שבו {name} נמצא, לפי מה שאתם מכירים.</p>
-          <ColorMap onPick={setPoint} dots={point ? [{ id: 'n', label: name, kind: 'person', ...point }] : []} size="lg" tilt={false} />
+          <ColorMap onPick={setPoint} dots={point ? [{ id: 'n', label: name, sub: role, kind: 'person', ...point }] : []} size="lg" tilt={false} />
           <button className="btn solid" disabled={!point} onClick={() => point && finish(point)}>
             שמירה
           </button>
@@ -212,6 +213,7 @@ function PersonPage({ person }: { person: Person }) {
   const lib = useStore((s) => s.library);
   const reading = useStore((s) => s.readings[0]);
   const myName = useStore((s) => s.myName);
+  const myRole = useStore((s) => s.myRole);
   const [moving, setMoving] = useState(false);
   const [details, setDetails] = useState(false);
   const [name, setName] = useState(person.name);
@@ -242,8 +244,8 @@ function PersonPage({ person }: { person: Person }) {
     );
 
   const dots: Dot[] = [
-    { id: person.id, label: person.name, kind: 'person', x: person.x, y: person.y },
-    ...(reading ? [{ id: 'me', label: myName || 'אני', kind: 'me' as const, x: reading.x, y: reading.y }] : []),
+    { id: person.id, label: person.name, sub: person.role, kind: 'person', x: person.x, y: person.y },
+    ...(reading ? [{ id: 'me', label: myName || 'אני', sub: myRole, kind: 'me' as const, x: reading.x, y: reading.y }] : []),
   ];
   const cc = coords(person);
   const pt = personTraits(person);

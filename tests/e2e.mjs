@@ -53,6 +53,9 @@ ok((await page.locator('a.brand').getAttribute('href')) === '#/', 'brand links h
 ok((await page.locator('.slab').count()) === 4, 'home: 3D wheel has four slabs');
 ok((await page.locator('.route-card').count()) === 6, 'home: six route cards');
 ok((await page.locator('.home-map .dot').count()) === 6, 'home: role archetypes on the map');
+const pill = page.locator('.home-map .dot', { hasText: 'דנה' }).locator('.pill');
+ok((await pill.locator('b').innerText()) === 'דנה' && (await pill.locator('small').innerText()) === 'מנהלת פרויקט', 'map: name in bold with the role under it');
+ok(await pill.evaluate((e) => +getComputedStyle(e.querySelector('b')).fontWeight >= 600 && +getComputedStyle(e.querySelector('small')).fontWeight <= 300), 'map: bold name, thin role');
 for (let i = 0; i < 30 && !db.requests.some((r) => r.path.startsWith('/rest/v1/idiot_library')); i++) await page.waitForTimeout(100);
 ok(db.requests.some((r) => r.path.startsWith('/rest/v1/idiot_library')), `library requested from Supabase (${db.requests.map((r) => r.path).join(', ')})`);
 await shot(page, '01-home.png');
@@ -103,12 +106,14 @@ await page.getByRole('button', { name: 'העתקת המדריך' }).click();
 await page.getByText('המדריך הועתק').waitFor();
 ok((await clip(page)).startsWith('המדריך לעבודה איתי'), 'me: copy "working with me" manual');
 ok(/משימה \d+ · יוזם \d+ · עוצמה \d+%/.test(await page.locator('.result .coords').innerText()), 'me: coordinates in map units');
-await page.getByLabel('השם שלי על המפה').fill('ענת');
+await page.getByLabel('השם והתפקיד שלי על המפה').fill('ענת');
+await page.getByLabel('התפקיד שלי', { exact: true }).fill('אדריכלית');
 await page.getByRole('button', { name: 'להוסיף אותי למפה' }).click();
 await page.getByText('ענת נוסף למפה').waitFor();
 await page.getByText('מופיע במפה הכללית').waitFor();
 const pub = db.idiot_results.find((r) => r.name === 'ענת');
-ok(pub && pub.traits.decisive === 1 && pub.traits.lead === 1 && pub.x === -1, 'shared: my result published with traits');
+ok((await page.locator('.result .dot-me .pill small').innerText()) === 'אדריכלית', 'map: my role under my name');
+ok(pub && pub.role === 'אדריכלית' && pub.traits.decisive === 1 && pub.traits.lead === 1 && pub.x === -1, 'shared: my result published with traits');
 ok((await page.locator('.tbar').count()) === 8, 'me: eight trait bars');
 ok((await page.locator('.tbar').first().locator('.mono').innerText()) === '8/8', 'me: trait shown as chosen out of offered');
 ok((await page.locator('.model-tab.tone-red .mono').innerText()) > (await page.locator('.model-tab.tone-green .mono').innerText()), 'me: most similar to the red model');
@@ -196,7 +201,7 @@ const inQuad = await page.evaluate(() => {
   // כל נקודה חייבת לשבת ברבע של הצבע שלה (נשבר פעם כשהרשת התהפכה ב-RTL)
   const expect = { 'דנה': 'red', 'יואב': 'yellow', 'מיכל': 'green', 'אורי': 'blue' };
   return Object.entries(expect).every(([name, c]) => {
-    const dot = [...document.querySelectorAll('.dot')].find((d) => d.textContent === name).querySelector('i').getBoundingClientRect();
+    const dot = [...document.querySelectorAll('.dot')].find((d) => d.querySelector('b')?.textContent === name).querySelector('i').getBoundingClientRect();
     const q = document.querySelector('.quad-' + c).getBoundingClientRect();
     const x = dot.left + dot.width / 2, y = dot.top + dot.height / 2;
     return x > q.left && x < q.right && y > q.top - 30 && y < q.bottom + 30;
@@ -295,11 +300,11 @@ ok(invite.includes('?g=%D7%9E%D7%A9%D7%A4%D7%97%D7%94#/me'), `shared: invite lin
   await np.goto(invite);
   await np.getByRole('button', { name: 'ישר לשאלות' }).click();
   await answerAll(np, SELF, 2);
-  await np.getByLabel('השם שלי על המפה').fill('נתן');
+  await np.getByLabel('השם והתפקיד שלי על המפה').fill('נתן');
   await np.getByRole('button', { name: 'להוסיף אותי למפה' }).click();
   await np.getByText('מופיע במפה הכללית בקבוצה "משפחה"').waitFor();
   ok(db.idiot_results.some((r) => r.name === 'נתן' && r.group_name === 'משפחה'), 'shared: a second device publishes into the family group');
-  await np.getByLabel('השם שלי על המפה').fill('נתן ש.');
+  await np.getByLabel('השם והתפקיד שלי על המפה').fill('נתן ש.');
   await np.getByRole('button', { name: 'עדכון' }).click();
   await np.waitForTimeout(600);
   ok(db.idiot_results.filter((r) => r.name.startsWith('נתן')).length === 1 && db.idiot_results.some((r) => r.name === 'נתן ש.'), 'shared: updating keeps one row per device');

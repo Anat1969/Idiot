@@ -17,6 +17,8 @@ type State = {
   readings: Reading[];
   /** השם שלי, כפי שהוא מופיע על המפה ובצוותים */
   myName: string;
+  /** התפקיד שלי, מוצג מתחת לשם על המפה */
+  myRole: string;
   people: Person[];
   teams: Team[];
   /** המפה הכללית: כל מי שאבחן את עצמו ושמר, מכל מכשיר */
@@ -37,6 +39,7 @@ const KEYS: Partial<Record<keyof State, string>> = {
   editMode: 'idiot.editMode',
   readings: 'idiot.readings',
   myName: 'idiot.myName',
+  myRole: 'idiot.myRole',
   people: 'idiot.people',
   teams: 'idiot.teams',
   shared: 'idiot.shared',
@@ -92,6 +95,7 @@ let state: State = {
   editMode: read(KEYS.editMode, false),
   readings: read(KEYS.readings, []),
   myName: read(KEYS.myName, ''),
+  myRole: read(KEYS.myRole, ''),
   people: seed ? [...(kept ?? []), ...seed.people] : (stored ?? []),
   teams: seed ? [...(oldDemo ? read<Team[]>(KEYS.teams, []).filter((t) => !t.demo) : []), ...seed.teams] : read(KEYS.teams, []),
   shared: read(KEYS.shared, []),
@@ -142,13 +146,13 @@ export const me = () => state.readings[0] ?? null;
 export const ME_ID = 'me';
 
 /** אני כאדם על המפה, לפי האבחון האחרון */
-export function mePerson(s: Pick<State, 'readings' | 'myName'> = state): Person | null {
+export function mePerson(s: Pick<State, 'readings' | 'myName'> & { myRole?: string } = state): Person | null {
   const r = s.readings[0];
-  return r ? { id: ME_ID, name: s.myName || 'אני', role: 'אני', note: '', x: r.x, y: r.y, at: r.at } : null;
+  return r ? { id: ME_ID, name: s.myName || 'אני', role: s.myRole || '', note: '', x: r.x, y: r.y, at: r.at } : null;
 }
 
-export function setMyName(name: string) {
-  setState({ myName: name.trim().slice(0, 40), publishPending: true, optOut: false });
+export function setMyName(name: string, role?: string) {
+  setState({ myName: name.trim().slice(0, 40), ...(role !== undefined ? { myRole: role.trim().slice(0, 60) } : {}), publishPending: true, optOut: false });
 }
 
 export function addReading(r: Reading) {
@@ -184,14 +188,14 @@ export function deleteTeam(id: string) {
 
 /** גיבוי של כל המידע האישי לקובץ, ושחזור ממנו */
 export function exportData() {
-  return JSON.stringify({ app: 'idiot', version: 1, myName: state.myName, readings: state.readings, people: state.people, teams: state.teams }, null, 2);
+  return JSON.stringify({ app: 'idiot', version: 1, myName: state.myName, myRole: state.myRole, readings: state.readings, people: state.people, teams: state.teams }, null, 2);
 }
 
 export function importData(text: string): boolean {
   try {
     const d = JSON.parse(text);
     if (d.app !== 'idiot' || !Array.isArray(d.people)) return false;
-    setState({ readings: d.readings ?? [], myName: d.myName ?? state.myName, people: d.people, teams: d.teams ?? [] });
+    setState({ readings: d.readings ?? [], myName: d.myName ?? state.myName, myRole: d.myRole ?? state.myRole, people: d.people, teams: d.teams ?? [] });
     return true;
   } catch {
     return false;

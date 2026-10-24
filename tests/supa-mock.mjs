@@ -48,7 +48,7 @@ export async function mockSupabase(ctx, db) {
       const ok = db.tokens.get(b.p_id) === createHash('sha256').update(b.p_token).digest('hex');
       if (!ok) return json(route, false);
       if (url.pathname.endsWith('delete')) db.idiot_results = db.idiot_results.filter((r) => r.id !== b.p_id);
-      else Object.assign(db.idiot_results.find((r) => r.id === b.p_id), { name: b.p_name, group_name: b.p_group, x: b.p_x, y: b.p_y, mix: b.p_mix, traits: b.p_traits, updated_at: new Date().toISOString() });
+      else Object.assign(db.idiot_results.find((r) => r.id === b.p_id), { name: b.p_name, role: b.p_role, group_name: b.p_group, x: b.p_x, y: b.p_y, mix: b.p_mix, traits: b.p_traits, updated_at: new Date().toISOString() });
       return json(route, true);
     }
     if (url.pathname === '/rest/v1/idiot_library') {
