@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
-import { toast } from '../lib/feedback';
 import { StudioMenu } from './StudioMenu';
 import type { Route } from '../lib/router';
 
-
-type BIPEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
 const NAV = [
   { href: '#/map', label: 'המפה הכללית', page: 'map' },
@@ -17,43 +14,9 @@ const NAV = [
 ] as const;
 
 export function TopBar({ route }: { route: Route }) {
-  const [install, setInstall] = useState<BIPEvent | null>(null);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const onBIP = (e: Event) => {
-      e.preventDefault();
-      setInstall(e as BIPEvent);
-    };
-    const onInstalled = () => {
-      setInstall(null);
-      toast('האפליקציה הותקנה');
-    };
-    window.addEventListener('beforeinstallprompt', onBIP);
-    window.addEventListener('appinstalled', onInstalled);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBIP);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
-
   useEffect(() => setOpen(false), [route]);
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(location.href);
-      toast('הקישור הועתק');
-    } catch {
-      toast('ההעתקה נחסמה בדפדפן', 'error');
-    }
-  };
-
-  const doInstall = async () => {
-    if (!install) return;
-    await install.prompt();
-    await install.userChoice;
-    setInstall(null);
-  };
 
   const activePage = route.page;
 
@@ -70,7 +33,7 @@ export function TopBar({ route }: { route: Route }) {
           <span className="brand-name">מוקף</span>
         </a>
 
-        <StudioMenu install={!!install} onInstall={doInstall} onCopy={copyLink} />
+        <StudioMenu />
 
         <button
           className="menu-toggle btn ghost sm"
