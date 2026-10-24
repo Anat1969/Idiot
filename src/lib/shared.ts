@@ -3,7 +3,7 @@ import { toast } from './feedback';
 import { getState, setState } from './store';
 import { supa } from './supa';
 import type { Group, SharedResult } from './types';
-import { joinGroup } from './store';
+import { groupsOf, joinGroup } from './store';
 
 const COLS = 'id,name,role,group_name,groups,x,y,mix,traits,created_at,updated_at';
 
@@ -14,7 +14,12 @@ export async function loadShared() {
     setState({ sharedSync: 'offline' });
     return;
   }
-  setState({ shared: res.data as SharedResult[], sharedSync: 'ready' });
+  const rows = res.data as SharedResult[];
+  setState({ shared: rows, sharedSync: 'ready' });
+  // הקבוצות שלי במסד הן המקור: מישהו אחר אולי הוסיף אותי לקבוצה. שינוי שלי שעוד לא נשלח גובר
+  const s = getState();
+  const mine = s.myShared && !s.publishPending ? rows.find((r) => r.id === s.myShared!.id) : undefined;
+  if (mine) setState({ myGroups: groupsOf(mine) });
   if (getState().publishPending) publishMe();
 }
 

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ColorMap, type Dot } from '../components/ColorMap';
 import { Quiz } from '../components/Quiz';
 import { COLORS } from '../data/starter';
@@ -140,6 +140,9 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
   const [myRoleDraft, setMyRoleDraft] = useState(myRole);
   const allGroups = useStore((s) => s.groups);
   const [pickedGroups, setPickedGroups] = useState<string[]>(myGroups);
+  // הקבוצות שלי מתעדכנות מהמסד (מישהו אחר אולי הוסיף אותי), והבחירה בטופס עוקבת אחריהן
+  const myGroupsKey = myGroups.join('|');
+  useEffect(() => setPickedGroups(myGroups), [myGroupsKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [newGroup, setNewGroup] = useState('');
   const groupNames = [...new Set([...allGroups.map((g) => g.name), ...shared.flatMap(groupsOf), ...myGroups])];
   const [model, setModel] = useState<Color | null>(null);
