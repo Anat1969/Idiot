@@ -91,8 +91,8 @@ export function SharedMap() {
                 ))}
               </div>
               <section className="panel">
-                <h3>עוצמת הסגנון</h3>
-                <div className="hist" aria-label="התפלגות העוצמה">
+                <h3>עד כמה הסגנון בולט</h3>
+                <div className="hist" aria-label="כמה אנשים בכל מרחק מהמרכז">
                   {['0 עד 25%', '25 עד 50%', '50 עד 75%', '75 עד 100%'].map((l, i) => (
                     <div key={l} className="hist-col">
                       <motion.i initial={{ height: 0 }} animate={{ height: `${(bins[i] / maxBin) * 100}%` }} transition={{ delay: i * 0.08 }} />
@@ -119,7 +119,7 @@ export function SharedMap() {
 
           {avg && (
             <section className="panel">
-              <h3>מכ"ם התכונות של הקבוצה</h3>
+              <h3>התכונות של כל אחד, זו על גבי זו</h3>
               <TraitRadar
                 series={rows
                   .filter((r) => toTraitsOrNull(r.traits))

@@ -99,7 +99,7 @@ function PeopleList() {
                       <span>{d.main.name}</span>
                       <small>{f !== null ? `${frictionLabel(f)} · ${f}` : coords(p).i}</small>
                     </span>
-                    {p.demo && <span className="tag">ארכיטיפ</span>}
+                    {p.demo && <span className="tag">דמות לדוגמה</span>}
                   </a>
                 </Tilt>
               </motion.div>
@@ -120,7 +120,7 @@ function PeopleList() {
           </button>
           {people.some((p) => p.demo) && (
             <button className="btn ghost sm" onClick={() => (clearDemo(), toast('הדוגמה נוקתה'))}>
-              ניקוי הארכיטיפים
+              ניקוי הדמויות לדוגמה
             </button>
           )}
           <input
@@ -158,6 +158,7 @@ function AddPerson() {
   if (mode === 'quiz')
     return (
       <div className="page narrow">
+        <p className="quiz-help">שש שאלות על {name}, לפי מה שאתם רואים בהתנהגות שלו. אין צורך שהוא ישתתף. בחרו את התשובה שהכי מתאימה למה שראיתם.</p>
         <Quiz questions={observeQuestions} subject={name} onCancel={() => setMode('form')} onDone={(a) => finish(score(a, observeQuestions))} />
       </div>
     );
@@ -167,6 +168,7 @@ function AddPerson() {
       <header className="page-head">
         <span className="label">אדם חדש</span>
         <h1>על מי מדובר?</h1>
+      <p className="lead">שתי דרכים למקם אדם על המפה: שש שאלות קצרות על מה שאתם רואים בהתנהגות שלו (מדויק יותר, ונותן גם את התכונות שלו), או לחיצה ישירה על המפה לפי ההיכרות שלכם. ההערכה נשמרת רק במכשיר שלכם, והאדם לא רואה אותה.</p>
       </header>
       <form
         className="form"
@@ -326,7 +328,7 @@ function PersonPage({ person }: { person: Person }) {
       <section className="panel">
         <div className="row between">
           <h3>פרופיל התכונות</h3>
-          <span className="label">{person.roleId ? `ארכיטיפ: ${lib.roles[person.roleId]?.name ?? ''}` : person.traits ? 'לפי שש שאלות תצפית' : 'הערכה לפי המיקום על המפה'}</span>
+          <span className="label">{person.roleId ? `דמות לדוגמה: ${lib.roles[person.roleId]?.name ?? ''}` : person.traits ? 'לפי שש שאלות תצפית' : 'הערכה לפי המיקום על המפה'}</span>
         </div>
         <div className="trait-layout">
           <TraitBars traits={pt} offered={person.traits && !person.roleId ? 3 : undefined} />
@@ -348,7 +350,7 @@ function PersonPage({ person }: { person: Person }) {
         <Explain>
           <p>
             {person.roleId
-              ? 'זה ארכיטיפ: אדם לדוגמה שהפרופיל שלו הוא בדיוק מה שהתפקיד דורש. הוא מראה איך תפקיד מסוים נראה על המפה ובתכונות.'
+              ? 'זו דמות לדוגמה, לא אדם אמיתי: התכונות שלה הן בדיוק מה שהתפקיד דורש. היא מראה איך תפקיד מסוים נראה על המפה ובתכונות.'
               : person.traits
                 ? 'כל תכונה הוצעה 3 פעמים בשאלות התצפית. המספר הוא כמה פעמים בחרת בה כשתיארת את האדם.'
                 : 'האדם סומן ישירות על המפה, ולכן התכונות מוערכות לפי המרחק מכל פינה. שש שאלות תצפית ייתנו פרופיל מדויק יותר.'}

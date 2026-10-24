@@ -49,7 +49,7 @@ const pt = (i: number, v: number) => {
 export function TraitRadar({ series }: { series: { traits: Traits; label: string; color: string; dashed?: boolean }[] }) {
   return (
     <figure className="radar">
-      <svg viewBox="-125 -115 250 230" role="img" aria-label="מכ״ם תכונות">
+      <svg viewBox="-125 -115 250 230" role="img" aria-label="תרשים תכונות">
         {[0.25, 0.5, 0.75, 1].map((r) => (
           <polygon key={r} className="radar-ring" points={TRAITS.map((_, i) => pt(i, r).join(',')).join(' ')} />
         ))}

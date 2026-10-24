@@ -76,7 +76,7 @@ export function App() {
         </motion.div>
       </main>
       <footer className="foot">
-        <span className="label">מוקף · מבוסס על מודל DISC · הערכות האנשים נשמרות רק במכשיר שלך</span>
+        <span className="label">מוקף · ארבעה סגנונות תקשורת · ההערכות שלך על אנשים אחרים נשמרות רק במכשיר שלך</span>
       </footer>
       <Toasts />
       <ConfirmDialog />

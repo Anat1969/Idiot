@@ -23,7 +23,7 @@ function useCandidates(): Candidate[] {
   const me = mePerson({ readings, myName, myRole });
   const out: Candidate[] = [];
   if (me && fullTraits(readings[0]?.traits)) out.push({ ...me, traits: readings[0].traits!, source: 'אני', href: '#/me' });
-  people.forEach((p) => out.push({ id: p.id, name: p.name, role: p.role, x: p.x, y: p.y, traits: personTraits(p), source: p.roleId ? 'ארכיטיפ' : p.traits ? 'תצפית' : 'הערכה מהמפה', href: `#/people/${p.id}` }));
+  people.forEach((p) => out.push({ id: p.id, name: p.name, role: p.role, x: p.x, y: p.y, traits: personTraits(p), source: p.roleId ? 'דמות לדוגמה' : p.traits ? 'תצפית' : 'הערכה מהמפה', href: `#/people/${p.id}` }));
   shared.forEach((r) => {
     const t = fullTraits(r.traits);
     if (t && r.id !== myShared?.id) out.push({ id: r.id, name: r.name, role: r.role, x: r.x, y: r.y, traits: t, source: r.group_name ? `המפה הכללית · ${r.group_name}` : 'המפה הכללית' });
@@ -38,9 +38,9 @@ export function Roles({ id }: { id?: string }) {
   return (
     <div className="page">
       <header className="page-head">
-        <span className="label">תפקידים · {list.length} ארכיטיפים</span>
+        <span className="label">תפקידים · {list.length} דמויות לדוגמה</span>
         <h1>איזה תפקיד נשען על מה</h1>
-        <p className="lead">לכל תפקיד יש תכונות שההצלחה בו נשענת עליהן. כאן רואים מה כל תפקיד דורש, איפה הארכיטיפ שלו יושב על המפה, ומי מהאנשים שלך מתאים לו.</p>
+        <p className="lead">לכל תפקיד יש תכונות שההצלחה בו נשענת עליהן. כאן רואים מה כל תפקיד דורש, איפה הדמות לדוגמה שלו יושב על המפה, ומי מהאנשים שלך מתאים לו.</p>
       </header>
       <div className="role-grid">
         {list.map((r, i) => {
@@ -76,7 +76,7 @@ function RoleDetail({ role }: { role: Role }) {
   const ranked = candidates.map((c) => ({ c, f: fit(c.traits, role) })).sort((a, b) => b.f - a.f);
   const best = ranked[0];
   const dots: Dot[] = [
-    { id: 'role', label: role.name, sub: 'ארכיטיפ', kind: 'guess', ...at },
+    { id: 'role', label: role.name, sub: 'דמות לדוגמה', kind: 'guess', ...at },
     ...ranked.slice(0, 6).map(({ c }) => ({ id: c.id, label: c.name, sub: c.role, x: c.x, y: c.y, kind: (c.source === 'אני' ? 'me' : 'person') as Dot['kind'] })),
   ];
 
@@ -95,7 +95,7 @@ function RoleDetail({ role }: { role: Role }) {
             <p>הפרופיל האידיאלי של התפקיד: כמה כל תכונה חשובה בו, באותה סקאלה של השאלון. ההתאמה של כל אדם נמדדת מול הפרופיל הזה.</p>
           </Explain>
         </section>
-        <ColorMap dots={dots} size="md" caption="המעגל המקווקו: איפה הארכיטיפ של התפקיד יושב" />
+        <ColorMap dots={dots} size="md" caption="המעגל המקווקו: איפה נמצא מי שיש לו בדיוק את התכונות שהתפקיד דורש" />
       </div>
       {best && (
         <section className="panel">

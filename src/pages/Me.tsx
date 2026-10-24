@@ -9,8 +9,8 @@ import { averageTraits, fullTraits } from '../lib/compare';
 import { publishMe, removeMe } from '../lib/shared';
 import { Explain, TraitBars, TraitRadar } from '../components/Traits';
 import { traitInfo } from '../data/traits';
-import { toast } from '../lib/feedback';
-import { addReading, setMyName, useStore } from '../lib/store';
+import { confirmAction, toast } from '../lib/feedback';
+import { addReading, newIdentity, setMyName, useStore } from '../lib/store';
 import { blend, coords, toneStyle } from '../lib/color';
 import { copyText, describe } from '../lib/text';
 import type { Color, Point, Reading } from '../lib/types';
@@ -19,6 +19,7 @@ type Step = 'intro' | 'guess' | 'quiz' | 'result';
 
 export function Me() {
   const readings = useStore((s) => s.readings);
+  const myName = useStore((s) => s.myName);
   const [step, setStep] = useState<Step>(readings.length ? 'result' : 'intro');
   const [guess, setGuess] = useState<Point | null>(null);
 
@@ -26,16 +27,42 @@ export function Me() {
     return (
       <div className="page narrow">
         <header className="page-head">
-          <span className="label">מי אני · שלושה שלבים</span>
-          <h1>קודם ניחוש, אחר כך שאלות</h1>
-          <p className="lead">סמנו על המפה איפה אתם חושבים שאתם נמצאים. אחר כך 16 שאלות קצרות. בכל שאלה ארבע תשובות טובות: בחרו את זו שהכי דומה לכם, לא את מה שנכון לעשות. בסוף תראו את שתי הנקודות ואת הפער ביניהן.</p>
+          <span className="label">אבחון אישי · בערך 4 דקות</span>
+          <h1>איך זה עובד</h1>
+          <p className="lead">האבחון בודק איך אתם נוטים לפעול ולתקשר עם אחרים. אין תשובות טובות או רעות, ואין ציון. התוצאה היא תמונה של הסגנון שלכם, כדי להבין את עצמכם ואת האנשים סביבכם.</p>
         </header>
+        <ol className="how">
+          <li>
+            <b>ניחוש על המפה</b>
+            <span>
+              לפני השאלות, לוחצים על המפה במקום שבו אתם חושבים שאתם נמצאים. המפה מחולקת לפי שתי שאלות: האם אתם מתמקדים יותר במשימה או באנשים, והאם אתם נוטים לפעול מיד או לבדוק קודם. הניחוש לא משפיע על התוצאה. הוא רק מאפשר לראות בסוף כמה קרוב ניחשתם. אפשר לדלג על השלב הזה.
+            </span>
+          </li>
+          <li>
+            <b>16 שאלות</b>
+            <span>
+              בכל שאלה יש מצב מהחיים וארבע תשובות. כל התשובות טובות. בוחרים את זו שהכי דומה למה שאתם באמת עושים, לא את מה שנראה נכון. אם שתיים מתאימות, בוחרים את הראשונה שעלתה בראש. אפשר לחזור לשאלה הקודמת.
+            </span>
+          </li>
+          <li>
+            <b>התוצאה</b>
+            <span>
+              תראו איפה אתם על המפה, איזה צבע מתאר אתכם, ואילו מתוך שמונה תכונות (כמו החלטיות, הקשבה, תכנון) בולטות אצלכם. תראו גם למי מהאנשים במפה הכללית אתם הכי דומים, ולאילו תפקידים התכונות שלכם מתאימות.
+            </span>
+          </li>
+          <li>
+            <b>המפה הכללית</b>
+            <span>
+              בסוף כותבים שם ותפקיד ולוחצים "להוסיף אותי למפה". מאותו רגע אתם מופיעים במפה הכללית, שכל מי שיש לו את הקישור רואה. בלי שם, התוצאה נשארת רק אצלכם במכשיר.
+            </span>
+          </li>
+        </ol>
         <div className="row wrap">
           <button className="btn solid" onClick={() => setStep('guess')}>
-            לסמן ניחוש
+            להתחיל בניחוש
           </button>
           <button className="btn ghost" onClick={() => (setGuess(null), setStep('quiz'))}>
-            ישר לשאלות
+            לדלג על הניחוש, ישר לשאלות
           </button>
         </div>
       </div>
@@ -45,17 +72,19 @@ export function Me() {
     return (
       <div className="page narrow">
         <header className="page-head">
-          <span className="label">שלב 1 מתוך 2</span>
-          <h1>איפה אתם על המפה?</h1>
-          <p className="lead">לחצו במקום שנראה לכם נכון. אפשר ללחוץ שוב כדי להזיז.</p>
+          <span className="label">שלב 1 מתוך 2 · ניחוש</span>
+          <h1>איפה אתם חושבים שאתם?</h1>
+          <p className="lead">
+            שמאל המפה הוא מי שמתמקד במשימה, ימין הוא מי שמתמקד באנשים. למעלה מי שפועל מיד, למטה מי שבודק קודם. ככל שהנקודה רחוקה יותר מהמרכז, הסגנון בולט יותר. לחצו במקום שנראה לכם נכון. אפשר ללחוץ שוב כדי להזיז.
+          </p>
         </header>
         <ColorMap onPick={setGuess} dots={guess ? [{ id: 'g', label: 'הניחוש שלי', kind: 'guess', ...guess }] : []} size="lg" tilt={false} />
         <div className="row wrap">
           <button className="btn solid" disabled={!guess} onClick={() => setStep('quiz')}>
-            להמשיך לשאלות
+            {guess ? 'להמשיך לשאלות' : 'קודם לוחצים על המפה'}
           </button>
           <button className="btn ghost" onClick={() => setStep('intro')}>
-            חזרה
+            חזרה להסבר
           </button>
         </div>
       </div>
@@ -64,6 +93,7 @@ export function Me() {
   if (step === 'quiz')
     return (
       <div className="page narrow">
+        <p className="quiz-help">שלב 2 מתוך 2. בחרו את התשובה שהכי דומה למה שאתם באמת עושים. כל התשובות טובות, ואין ציון.</p>
         <Quiz
           questions={selfQuestions}
           onCancel={() => setStep(readings.length ? 'result' : 'intro')}
@@ -75,10 +105,27 @@ export function Me() {
       </div>
     );
 
-  return <Result readings={readings} onAgain={() => (setGuess(null), setStep('guess'))} />;
+  return (
+    <Result
+      readings={readings}
+      onAgain={() => (setGuess(null), setStep('intro'))}
+      onOther={() =>
+        confirmAction({
+          title: 'אבחון לאדם אחר במכשיר הזה?',
+          body: `${myName ? `התוצאה של ${myName}` : 'התוצאה הנוכחית'} תישאר במפה הכללית, אבל המכשיר יתחיל מחדש בשביל אדם אחר. האנשים והצוותים שהוספת נשארים.`,
+          action: 'להתחיל אבחון חדש',
+          onConfirm: () => {
+            newIdentity();
+            setGuess(null);
+            setStep('intro');
+          },
+        })
+      }
+    />
+  );
 }
 
-function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => void }) {
+function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: () => void; onOther: () => void }) {
   const lib = useStore((s) => s.library);
   const myName = useStore((s) => s.myName);
   const myRole = useStore((s) => s.myRole);
@@ -148,7 +195,15 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
     <div className="page">
       <motion.section className="result" style={toneStyle(r)} initial={{ opacity: 0, rotateX: 12, y: 30 }} animate={{ opacity: 1, rotateX: 0, y: 0 }}>
         <div className="result-text">
-          <span className="label">התוצאה שלי</span>
+          <div className="row wrap result-actions">
+            <span className="label">התוצאה שלי</span>
+            <button className="btn ghost xs" onClick={onAgain}>
+              אבחון חוזר
+            </button>
+            <button className="btn ghost xs" onClick={onOther}>
+              אבחון לאדם אחר במכשיר הזה
+            </button>
+          </div>
           <h1>
             {main.name}
             <small> · {main.title}</small>
@@ -162,7 +217,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
               <b>המיקום על המפה</b> הוא ממוצע של כל התשובות: כל תשובה מושכת לעבר הפינה של הצבע שלה. "משימה {Math.abs(Math.round(r.x * 100))}" פירושו שהנקודה נמצאת {Math.abs(Math.round(r.x * 100))} יחידות מהמרכז לכיוון {r.x < 0 ? 'משימה' : 'אנשים'}, מתוך 100 עד הקצה.
             </p>
             <p>
-              <b>העוצמה</b> היא המרחק מהמרכז, באחוזים מהמרחק עד הפינה. 0% = מאוזן לגמרי, 100% = כל התשובות מאותו צבע. עוצמה נמוכה היא לא חולשה: היא גמישות בין סגנונות.
+              <b>בולטות הסגנון</b> היא המרחק של הנקודה מהמרכז, באחוזים מהמרחק עד הפינה. 0% = מאוזן לגמרי, 100% = כל התשובות מאותו צבע. בולטות נמוכה היא לא חולשה: היא גמישות בין סגנונות.
             </p>
           </Explain>
           <div className="mix" aria-label="חלוקת הצבעים בתשובות">
@@ -183,27 +238,24 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
             className="name-row"
             onSubmit={(e) => {
               e.preventDefault();
+              // בלי שם אין מה להוסיף. הכפתור לא מסיר אף פעם: הסרה נמצאת בנפרד, עם אישור
+              if (!name.trim()) return toast('כתבו שם כדי להופיע במפה הכללית', 'error');
+              const first = !myShared || optOut;
               setMyName(name, myRoleDraft);
-              toast(name.trim() ? `${name.trim()} נוסף למפה` : 'השם הוסר מהמפה');
+              toast(first ? `${name.trim()} נוסף למפה הכללית` : 'הפרטים עודכנו במפה הכללית');
               publishMe();
             }}
           >
             <label htmlFor="my-name">השם והתפקיד שלי על המפה</label>
+            <span className="form-help">כותבים שם ותפקיד ולוחצים. התוצאה שלכם תופיע במפה הכללית, שכל מי שיש לו את הקישור רואה. בלי שם היא נשארת רק במכשיר הזה.</span>
             <div className="row">
               <input id="my-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: ענת" maxLength={40} />
               <input id="my-role" value={myRoleDraft} onChange={(e) => setMyRoleDraft(e.target.value)} placeholder="תפקיד, למשל: אדריכלית" maxLength={60} aria-label="התפקיד שלי" />
-              <button className="btn solid sm" type="submit">
-                {myName ? 'עדכון' : 'להוסיף אותי למפה'}
+              <button className="btn solid sm" type="submit" disabled={!name.trim()}>
+                {myShared && !optOut ? 'עדכון הפרטים' : 'להוסיף אותי למפה'}
               </button>
             </div>
-            <span className="share-status">
-              {status}
-              {myShared && !optOut && (
-                <button type="button" className="linkish" onClick={() => removeMe()}>
-                  הסרה מהמפה הכללית
-                </button>
-              )}
-            </span>
+            <span className="share-status">{status}</span>
           </form>
         </div>
         <ColorMap dots={dots} size="md" />
@@ -213,7 +265,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
         <>
           <section className="panel">
             <div className="row between">
-              <h3>פרופיל התכונות שלי</h3>
+              <h3>שמונה התכונות שלי</h3>
               <span className="label">ביחס לעצמי</span>
             </div>
             <p className="muted">
@@ -250,10 +302,11 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
 
           <section className="panel">
             <div className="row between">
-              <h3>אני מול ארבעת המודלים</h3>
-              <span className="label">ביחס למודלים</span>
+              <h3>כמה אני דומה לכל אחד מארבעת הסגנונות</h3>
+              <span className="label">השוואה לסגנונות</span>
             </div>
-            <div className="model-tabs" role="tablist" aria-label="מודל להשוואה">
+            <p className="muted">לכל צבע יש צורה טיפוסית של תכונות. כאן הצורה שלך מונחת על הצורה הטיפוסית של צבע אחד. לחצו על צבע אחר כדי להשוות אליו. המספר הוא אחוז הדמיון.</p>
+            <div className="model-tabs" role="tablist" aria-label="צבע להשוואה">
               {COLORS.map((c) => {
                 const sim = similarity(traits, modelTraits(c));
                 return (
@@ -266,7 +319,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
             </div>
             <TraitRadar
               series={[
-                { traits: modelTraits(shownModel), label: `המודל ה${lib.profiles[shownModel].name}`, color: lib.profiles[shownModel].hex, dashed: true },
+                { traits: modelTraits(shownModel), label: `הסגנון ה${lib.profiles[shownModel].name} הטיפוסי`, color: lib.profiles[shownModel].hex, dashed: true },
                 ...(avg ? [{ traits: avg.avg, label: avgLabel, color: '#8d8a84', dashed: true }] : []),
                 { traits, label: myName || 'אני', color: blend(r).c },
               ]}
@@ -281,6 +334,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
           <div className="detail-grid">
             <section className="panel">
               <h3>הכי דומים לי במפה הכללית</h3>
+              <p className="muted">האנשים במפה הכללית שבחרו בתכונות הכי דומות לשלך. 100% = בחרו בדיוק כמוך.</p>
               {nearest.length ? (
                 <ul className="near">
                   {nearest.map(({ o, sim }) => (
@@ -300,6 +354,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
             </section>
             <section className="panel">
               <h3>התאמה לתפקידים</h3>
+              <p className="muted">לכל תפקיד יש תכונות שההצלחה בו נשענת עליהן. המספר מראה כמה מהן קיימות אצלך.</p>
               <ul className="fits">
                 {roleFits.slice(0, 4).map(({ role, f }) => (
                   <li key={role.id}>
@@ -321,12 +376,12 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
           </div>
         </>
       ) : (
-        <p className="hint">האבחון הזה נעשה בגרסה הקודמת, בלי פרופיל תכונות. אבחון חוזר (16 שאלות) יוסיף את התכונות, ההשוואה למודלים וההתאמה לתפקידים.</p>
+        <p className="hint">האבחון הזה נעשה בגרסה הקודמת, בלי שמונה התכונות. אבחון חוזר (16 שאלות) יוסיף את התכונות, את ההשוואה לסגנונות ואת ההתאמה לתפקידים.</p>
       )}
 
       {g !== null && (
         <section className="panel gap">
-          <span className="label">פער מודעות עצמית</span>
+          <span className="label">כמה הניחוש שלי היה קרוב</span>
           <div className="gap-row">
             <span className="mono big">{g}%</span>
             <p>{gapText(g)}</p>
@@ -369,9 +424,27 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
         <pre className="manual-text">{manual}</pre>
       </section>
 
+      {myShared && !optOut && (
+        <section className="panel privacy">
+          <h3>ההופעה שלי במפה הכללית</h3>
+          <p className="muted">השם, התפקיד והתוצאה שלך גלויים במפה הכללית. אפשר להסיר אותם בכל רגע. ההסרה לא מוחקת את התוצאה מהמכשיר, ואפשר להוסיף שוב.</p>
+          <button
+            className="btn ghost sm danger-text"
+            onClick={() =>
+              confirmAction({ title: 'להסיר אותי מהמפה הכללית?', body: 'השם והתוצאה יימחקו מהמפה הכללית לכל המשתמשים. במכשיר הזה התוצאה נשארת.', action: 'הסרה', onConfirm: () => removeMe() })
+            }
+          >
+            הסרה מהמפה הכללית
+          </button>
+        </section>
+      )}
+
       <div className="row wrap">
         <button className="btn solid" onClick={onAgain}>
           אבחון חוזר
+        </button>
+        <button className="btn ghost" onClick={onOther}>
+          אבחון לאדם אחר במכשיר הזה
         </button>
         <a className="btn ghost" href={`#/colors/${main.color}`}>
           הפרופיל המלא של {main.name}

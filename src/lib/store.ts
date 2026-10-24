@@ -66,7 +66,7 @@ function seedPeople(): { people: Person[]; teams: Team[] } {
     const traits = roleTraits(role);
     return { ...pointFromTraits(traits), id: `arch-${a.roleId}`, name: a.name, role: role.name, roleId: a.roleId, traits, note: '', demo: true, at: Date.now() };
   });
-  return { people, teams: [{ id: 'demo-team', name: 'צוות פרויקט (ארכיטיפים)', members: people.map((p) => p.id), demo: true }] };
+  return { people, teams: [{ id: 'demo-team', name: 'צוות פרויקט (דמויות לדוגמה)', members: people.map((p) => p.id), demo: true }] };
 }
 
 function groupFromUrl(): string | null {
@@ -153,6 +153,11 @@ export function mePerson(s: Pick<State, 'readings' | 'myName'> & { myRole?: stri
 
 export function setMyName(name: string, role?: string) {
   setState({ myName: name.trim().slice(0, 40), ...(role !== undefined ? { myRole: role.trim().slice(0, 60) } : {}), publishPending: true, optOut: false });
+}
+
+/** אבחון לאדם אחר באותו מכשיר: התוצאה הקודמת נשארת במפה הכללית, והמכשיר מתחיל זהות חדשה */
+export function newIdentity() {
+  setState({ readings: [], myName: '', myRole: '', myShared: null, optOut: false, publishPending: false });
 }
 
 export function addReading(r: Reading) {
