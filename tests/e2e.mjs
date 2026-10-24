@@ -366,6 +366,17 @@ await page.goto(BASE + '/#/map/' + encodeURIComponent('משפחה'));
 await page.locator('.members').getByLabel('הוספת נתן ש. גם לקבוצה אחרת').selectOption('צוות התכנון');
 for (let i = 0; i < 30 && natan().groups.length < 2; i++) await page.waitForTimeout(100);
 ok(JSON.stringify(natan().groups) === JSON.stringify(['משפחה', 'צוות התכנון']), 'groups: add to another group from a group page, staying in this one');
+// מישהו אחר הוסיף אותי לקבוצה: המכשיר שלי מתעדכן, ועדכון השם לא מוחק את הקבוצה
+db.idiot_results.find((r) => r.name === 'ענת').groups = ['משפחה', 'צוות התכנון'];
+await page.goto(BASE + '/#/me');
+await page.reload();
+await page.locator('.pick-groups').waitFor();
+await page.waitForTimeout(800);
+await page.getByRole('button', { name: 'עדכון הפרטים' }).click();
+for (let i = 0; i < 20; i++) await page.waitForTimeout(100);
+ok(JSON.stringify(db.idiot_results.find((r) => r.name === 'ענת').groups) === JSON.stringify(['משפחה', 'צוות התכנון']), 'groups: a group someone else added me to survives updating my details');
+await page.goto(BASE + '/#/map/' + encodeURIComponent('משפחה'));
+await page.locator('.members').waitFor();
 await page.getByRole('radio', { name: /כולם/ }).click();
 ok((await page.locator('.hist-col').count()) === 4 && (await page.locator('.radar').count()) === 1, 'shared: intensity histogram and group radar');
 await shot(page, '13-shared-map.png');
