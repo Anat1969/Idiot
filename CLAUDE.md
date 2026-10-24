@@ -40,4 +40,5 @@
 - מפה ב-RTL: רשת הרבעים מתהפכת, והנקודות (left/top) לא. `.map-plane` מקבל direction: ltr והרבעים בסדר אדום, צהוב, כחול, ירוק. הבדיקה מוודאת שכל נקודה ברבע שלה.
 - עורך הצוות בתוך דף הצוות: אחרי שמירה הכתובת לא משתנה, ולכן סוגרים אותו בקריאה חוזרת (onDone) ולא בניווט.
 - מלכודות מ-Faces שתקפות גם כאן: בלי AnimatePresence סביב דפים; `.btn.menu-toggle`; `overflow-x: clip` ב-`.main`; בדיקת התקנה רק ב-launchPersistentContext; serviceWorkers: 'block' בבדיקות עם מוק; executablePath '/opt/pw-browsers/chromium'.
+- Supabase: apply_migration מחכה לאישור ידני שפג אחרי דקה. execute_sql עובד ל-DDL בלי אישור, אבל פקודה עם delete או בדיקת RLS בטרנזקציה עלולה לבקש אישור. הטבלאות נוצרו כך ב-24.10.2026, והסכמה המלאה ב-supabase/schema.sql.
 - הסביבה לא מגיעה ל-supabase.co: בדיקות דרך tests/supa-mock.mjs, שקורא את supabase/seed.sql.
