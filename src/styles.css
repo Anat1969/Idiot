@@ -569,3 +569,10 @@ input:not([type]), input[type='text'], textarea, .tag, .linkish { border-radius:
 .members .who small { font-size: 12px; font-weight: 300; color: var(--muted); }
 .members select, .group-cell select { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); background: #fff; border-radius: 0; max-width: 100%; }
 .group-cell { display: grid; gap: 4px; }
+.pick-groups { border: 0; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.pick-groups legend { font-size: 14px; color: var(--ink-2); padding: 0; }
+.pick-groups .chip-btn { min-height: 36px; font-size: 14px; }
+.group-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.group-tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; font-size: 13px; background: rgba(23,24,27,.06); box-shadow: inset 0 0 0 1px var(--line); }
+.group-tag .linkish { font-size: 11px; }
+.results td { white-space: normal; }
