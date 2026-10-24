@@ -533,3 +533,20 @@ textarea.editable { display: block; margin: 4px 0 10px; background: #fffdf6; bor
 .role-detail h2 { margin: 4px 0 6px; font-weight: 200; font-size: clamp(36px, 5vw, 60px); line-height: 1.05; }
 .role-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: center; }
 @media (max-width: 860px) { .role-top { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- הסבר השלבים ---------- */
+.how { list-style: none; counter-reset: h; padding: 0; margin: 0; display: grid; gap: 12px; }
+.how li { counter-increment: h; display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 14px; padding: 18px 20px; background: linear-gradient(170deg, #fff, #f3f2ef); box-shadow: var(--shadow-1); }
+.how li::before { content: counter(h); grid-row: span 2; width: 44px; height: 44px; display: grid; place-items: center; font-family: var(--mono); font-size: 18px; color: #fff; background: linear-gradient(160deg, #3b3d42, #17181b); }
+.how b { font-size: 18px; font-weight: 500; }
+.how span { color: var(--ink-2); font-size: 15px; }
+.quiz-help, .form-help { margin: 0; font-size: 14px; color: var(--ink-2); }
+.result-actions { gap: 8px; margin-bottom: 4px; }
+.result-actions .label { margin-inline-end: auto; }
+.privacy { box-shadow: var(--shadow-1); }
+
+/* ---------- כפתורים, צ'יפים ושדות מרובעים (הסקיל של ענת) ---------- */
+.btn, .chip-btn, .goal, .option, .model-tab, .role-card, .color-tab, .route-card, .team-card, .person-card, .chip, .need,
+input:not([type]), input[type='text'], textarea, .tag, .linkish { border-radius: 0 !important; }
+.btn:hover:not(:disabled), .chip-btn:hover, .goal:hover, .option:hover, .model-tab:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+.btn:active:not(:disabled), .chip-btn:active, .goal:active, .option:active, .model-tab:active { transform: translateY(1px); box-shadow: var(--shadow-1); }

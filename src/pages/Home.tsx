@@ -25,7 +25,7 @@ export function Home() {
       href: '#/me',
       tag: '01',
       title: 'מי אני',
-      text: reading ? describe(lib, reading).line : 'ניחוש, 16 שאלות, פרופיל של שמונה תכונות, והשוואה לעצמך, למודלים ולאחרים.',
+      text: reading ? describe(lib, reading).line : 'בערך 4 דקות: ניחוש על המפה, 16 שאלות קצרות, ותמונה של הסגנון והתכונות שלך.',
       color: reading ? colorAt(reading) : null,
     },
     { href: '#/people', tag: '02', title: 'האנשים סביבי', text: `${people.length === 1 ? 'אדם אחד' : `${people.length} אנשים`} על המפה. שש שאלות תצפית לכל אחד.`, color: null },
@@ -39,7 +39,7 @@ export function Home() {
     <div className="page home">
       <section className="hero">
         <div className="hero-text">
-          <span className="label">מודל DISC · ארבעה סגנונות תקשורת</span>
+          <span className="label">ארבעה סגנונות תקשורת</span>
           <h1>
             <span>"אתה מוקף</span> <span>אידיוטים"</span>
           </h1>
