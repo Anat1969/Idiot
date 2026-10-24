@@ -34,7 +34,8 @@ function useRoster() {
   const people = useStore((s) => s.people);
   const readings = useStore((s) => s.readings);
   const myName = useStore((s) => s.myName);
-  const me = mePerson({ readings, myName });
+  const myRole = useStore((s) => s.myRole);
+  const me = mePerson({ readings, myName, myRole });
   return me ? [me, ...people] : people;
 }
 
@@ -177,7 +178,7 @@ function TeamPage({ team }: { team: TeamT }) {
     ...pairs.slice(0, 3).map((p) => `- ${p.a.name} ו${p.b.name}: ${lib.pairs[`${colorAt(p.a)}-${colorAt(p.b)}`].title}`),
   ].join('\n');
 
-  const dots: Dot[] = members.map((m) => ({ id: m.id, label: m.name, kind: m.id === ME_ID ? 'me' : 'person', x: m.x, y: m.y, href: m.id === ME_ID ? '#/me' : `#/people/${m.id}` }));
+  const dots: Dot[] = members.map((m) => ({ id: m.id, label: m.name, sub: m.role, kind: m.id === ME_ID ? 'me' : 'person', x: m.x, y: m.y, href: m.id === ME_ID ? '#/me' : `#/people/${m.id}` }));
 
   return (
     <div className="page">

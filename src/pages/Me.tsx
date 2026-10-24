@@ -81,6 +81,7 @@ export function Me() {
 function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => void }) {
   const lib = useStore((s) => s.library);
   const myName = useStore((s) => s.myName);
+  const myRole = useStore((s) => s.myRole);
   const shared = useStore((s) => s.shared);
   const sharedSync = useStore((s) => s.sharedSync);
   const myShared = useStore((s) => s.myShared);
@@ -88,6 +89,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
   const optOut = useStore((s) => s.optOut);
   const group = useStore((s) => s.group);
   const [name, setName] = useState(myName);
+  const [myRoleDraft, setMyRoleDraft] = useState(myRole);
   const [model, setModel] = useState<Color | null>(null);
   const r = readings[0];
   if (!r) return null;
@@ -103,7 +105,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
   const answered = Math.round(Object.values(r.mix).reduce((a, b) => a + b, 0) ? (traits ? 16 : 12) : 0);
   const dots: Dot[] = [
     ...(r.guess ? [{ id: 'g', label: 'הניחוש', kind: 'guess' as const, ...r.guess }] : []),
-    { id: 'me', label: myName || 'אני', kind: 'me', x: r.x, y: r.y },
+    { id: 'me', label: myName || 'אני', sub: myRole, kind: 'me', x: r.x, y: r.y },
   ];
   const nearest = traits
     ? others
@@ -181,14 +183,15 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
             className="name-row"
             onSubmit={(e) => {
               e.preventDefault();
-              setMyName(name);
+              setMyName(name, myRoleDraft);
               toast(name.trim() ? `${name.trim()} נוסף למפה` : 'השם הוסר מהמפה');
               publishMe();
             }}
           >
-            <label htmlFor="my-name">השם שלי על המפה</label>
+            <label htmlFor="my-name">השם והתפקיד שלי על המפה</label>
             <div className="row">
               <input id="my-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: ענת" maxLength={40} />
+              <input id="my-role" value={myRoleDraft} onChange={(e) => setMyRoleDraft(e.target.value)} placeholder="תפקיד, למשל: אדריכלית" maxLength={60} aria-label="התפקיד שלי" />
               <button className="btn solid sm" type="submit">
                 {myName ? 'עדכון' : 'להוסיף אותי למפה'}
               </button>

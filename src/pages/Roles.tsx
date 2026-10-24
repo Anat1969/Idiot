@@ -11,7 +11,7 @@ import { go } from '../lib/router';
 import { mePerson, useStore } from '../lib/store';
 import type { Point, Role, Traits } from '../lib/types';
 
-type Candidate = Point & { id: string; name: string; traits: Traits; source: string; href?: string };
+type Candidate = Point & { id: string; name: string; role?: string; traits: Traits; source: string; href?: string };
 
 function useCandidates(): Candidate[] {
   const people = useStore((s) => s.people);
@@ -19,13 +19,14 @@ function useCandidates(): Candidate[] {
   const readings = useStore((s) => s.readings);
   const myName = useStore((s) => s.myName);
   const myShared = useStore((s) => s.myShared);
-  const me = mePerson({ readings, myName });
+  const myRole = useStore((s) => s.myRole);
+  const me = mePerson({ readings, myName, myRole });
   const out: Candidate[] = [];
   if (me && fullTraits(readings[0]?.traits)) out.push({ ...me, traits: readings[0].traits!, source: 'אני', href: '#/me' });
-  people.forEach((p) => out.push({ id: p.id, name: p.name, x: p.x, y: p.y, traits: personTraits(p), source: p.roleId ? 'ארכיטיפ' : p.traits ? 'תצפית' : 'הערכה מהמפה', href: `#/people/${p.id}` }));
+  people.forEach((p) => out.push({ id: p.id, name: p.name, role: p.role, x: p.x, y: p.y, traits: personTraits(p), source: p.roleId ? 'ארכיטיפ' : p.traits ? 'תצפית' : 'הערכה מהמפה', href: `#/people/${p.id}` }));
   shared.forEach((r) => {
     const t = fullTraits(r.traits);
-    if (t && r.id !== myShared?.id) out.push({ id: r.id, name: r.name, x: r.x, y: r.y, traits: t, source: r.group_name ? `המפה הכללית · ${r.group_name}` : 'המפה הכללית' });
+    if (t && r.id !== myShared?.id) out.push({ id: r.id, name: r.name, role: r.role, x: r.x, y: r.y, traits: t, source: r.group_name ? `המפה הכללית · ${r.group_name}` : 'המפה הכללית' });
   });
   return out;
 }
@@ -75,8 +76,8 @@ function RoleDetail({ role }: { role: Role }) {
   const ranked = candidates.map((c) => ({ c, f: fit(c.traits, role) })).sort((a, b) => b.f - a.f);
   const best = ranked[0];
   const dots: Dot[] = [
-    { id: 'role', label: `ארכיטיפ: ${role.name}`, kind: 'guess', ...at },
-    ...ranked.slice(0, 6).map(({ c }) => ({ id: c.id, label: c.name, x: c.x, y: c.y, kind: (c.source === 'אני' ? 'me' : 'person') as Dot['kind'] })),
+    { id: 'role', label: role.name, sub: 'ארכיטיפ', kind: 'guess', ...at },
+    ...ranked.slice(0, 6).map(({ c }) => ({ id: c.id, label: c.name, sub: c.role, x: c.x, y: c.y, kind: (c.source === 'אני' ? 'me' : 'person') as Dot['kind'] })),
   ];
 
   return (

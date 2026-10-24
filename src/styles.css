@@ -311,12 +311,19 @@ textarea.editable { display: block; margin: 4px 0 10px; background: #fffdf6; bor
 .dot a, .dot { text-decoration: none; color: inherit; }
 .dot a { display: grid; justify-items: center; }
 .dot i { display: block; width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c, #4a4c52) 55%, #fff), var(--c, #121316) 60%); border: 2px solid #17181b; outline: 2px solid #fff; box-shadow: 0 10px 14px -4px rgba(0,0,0,.55); margin: 0 auto; }
-.dot b { display: block; margin-top: 4px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; background: rgba(255,255,255,.92); color: var(--ink); box-shadow: 0 4px 10px -4px rgba(0,0,0,.35); white-space: nowrap; }
+.dot .pill { display: grid; justify-items: center; margin-top: 4px; padding: 2px 9px 3px; border-radius: 10px; background: rgba(255,255,255,.94); color: var(--ink); box-shadow: 0 4px 10px -4px rgba(0,0,0,.35); white-space: nowrap; line-height: 1.15; }
+/* השם בבולד, התפקיד דק וקטן מתחתיו */
+.dot .pill b { font-size: 12px; font-weight: 700; }
+.dot .pill small { font-size: 9.5px; font-weight: 300; opacity: .85; letter-spacing: .01em; }
 .dot-me i { width: 26px; height: 26px; border: 4px solid #17181b; outline: 3px solid #fff; box-shadow: 0 0 0 6px rgba(255,255,255,.35), 0 14px 20px -6px rgba(0,0,0,.6); }
-.dot-me b { background: #17181b; color: #fff; }
+.dot-me .pill { background: #17181b; color: #fff; }
 .dot-guess i { width: 22px; height: 22px; background: transparent; border: 3px dashed #17181b; outline: none; box-shadow: none; }
-.dot-guess b { background: rgba(23,24,27,.55); color: #fff; }
-.dot a:hover b { background: #17181b; color: #fff; }
+.dot-guess .pill { background: rgba(23,24,27,.6); color: #fff; }
+.dot a:hover .pill { background: #17181b; color: #fff; }
+.map-sm .dot .pill small { display: none; }
+.role-sub { display: block; font-size: 12px; font-weight: 300; color: var(--muted); }
+.name-row .row { flex-wrap: wrap; }
+.name-row .row > input { flex: 1 1 140px; }
 
 /* ---------- צבעים ---------- */
 .color-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; perspective: 1000px; }

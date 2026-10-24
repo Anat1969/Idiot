@@ -4,7 +4,7 @@ import { getState, setState } from './store';
 import { supa } from './supa';
 import type { SharedResult } from './types';
 
-const COLS = 'id,name,group_name,x,y,mix,traits,created_at,updated_at';
+const COLS = 'id,name,role,group_name,x,y,mix,traits,created_at,updated_at';
 
 export async function loadShared() {
   const res = await supa.from('idiot_results').select(COLS).order('created_at');
@@ -35,12 +35,13 @@ export async function publishMe(): Promise<boolean> {
   if (!r || !s.myName || s.optOut || busy) return false;
   busy = true;
   try {
-    const row = { name: s.myName, group_name: s.group, x: r.x, y: r.y, mix: r.mix, traits: r.traits ?? {} };
+    const row = { name: s.myName, role: s.myRole, group_name: s.group, x: r.x, y: r.y, mix: r.mix, traits: r.traits ?? {} };
     if (s.myShared) {
       const up = await supa.rpc('idiot_result_update', {
         p_id: s.myShared.id,
         p_token: s.myShared.token,
         p_name: row.name,
+        p_role: row.role,
         p_group: row.group_name,
         p_x: row.x,
         p_y: row.y,

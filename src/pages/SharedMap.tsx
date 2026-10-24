@@ -26,7 +26,7 @@ export function SharedMap() {
 
   const groups = [...new Set(shared.map((r) => r.group_name).filter(Boolean))];
   const rows = filter === '' ? shared : shared.filter((r) => (filter === NONE ? !r.group_name : r.group_name === filter));
-  const dots: Dot[] = rows.map((r) => ({ id: r.id, label: r.name, x: r.x, y: r.y, kind: r.id === myShared?.id ? 'me' : 'person' }));
+  const dots: Dot[] = rows.map((r) => ({ id: r.id, label: r.name, sub: r.role || undefined, x: r.x, y: r.y, kind: r.id === myShared?.id ? 'me' : 'person' }));
   const count = Object.fromEntries(COLORS.map((c) => [c, rows.filter((r) => colorAt(r) === c).length])) as Record<Color, number>;
   const avg = averageTraits(rows);
   const bins = [0, 0, 0, 0];
@@ -151,6 +151,7 @@ export function SharedMap() {
                         <td>
                           <span className="swatch sm" aria-hidden="true" />
                           <b>{r.name}</b>
+                          {r.role && <small className="role-sub">{r.role}</small>}
                           {r.id === myShared?.id && <span className="tag">אני</span>}
                         </td>
                         <td>{r.group_name || '-'}</td>
