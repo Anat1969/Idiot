@@ -71,6 +71,8 @@ export type SharedResult = Point & {
   name: string;
   role: string;
   group_name: string;
+  /** כל הקבוצות שהאדם הצטרף אליהן */
+  groups?: string[];
   mix: Partial<Record<Color, number>>;
   traits: Partial<Traits>;
   created_at: string;
@@ -78,3 +80,6 @@ export type SharedResult = Point & {
 };
 
 export type Team = { id: string; name: string; members: string[]; demo?: boolean };
+
+/** קבוצה של אנשים עם עניין משותף, שכל אחד יכול לפתוח */
+export type Group = { name: string; about: string; created_at: string };

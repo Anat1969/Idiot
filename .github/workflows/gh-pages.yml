@@ -1,0 +1,27 @@
+# כל עדכון של main נבנה ומתפרסם לענף gh-pages, כדי שתמיד תהיה גרסה חיה גם בלי Vercel
+name: GitHub preview
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: |
+          touch dist/.nojekyll
+          echo "build of ${GITHUB_SHA::7}, $(date -u +%Y-%m-%dT%H:%MZ)" > dist/version.txt
+          cd dist
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "Publish build of ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

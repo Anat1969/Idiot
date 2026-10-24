@@ -71,7 +71,7 @@ export function App() {
           {route.page === 'people' && <People id={route.id} />}
           {route.page === 'meet' && <Meet id={route.id} goal={route.goal} />}
           {route.page === 'team' && <Team id={route.id} />}
-          {route.page === 'map' && <SharedMap />}
+          {route.page === 'map' && <SharedMap group={route.group} />}
           {route.page === 'roles' && <Roles id={route.id} />}
         </motion.div>
       </main>

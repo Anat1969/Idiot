@@ -3,7 +3,7 @@ import { goals, pairs, profiles } from '../data/starter';
 import { archetypes, roles } from '../data/traits';
 import { pointFromTraits, roleTraits } from './engine';
 import { uid } from './id';
-import type { Library, Person, Reading, SharedResult, Team } from './types';
+import type { Group, Library, Person, Reading, SharedResult, Team } from './types';
 
 export type SyncStatus = 'loading' | 'ready' | 'offline';
 
@@ -26,6 +26,10 @@ type State = {
   sharedSync: SyncStatus;
   /** הקבוצה שאליה הוזמנתי (?g= בקישור), למשל "משפחה" */
   group: string;
+  /** הקבוצות שאני חבר בהן (אפשר כמה). נשלחות עם התוצאה שלי למפה הכללית */
+  myGroups: string[];
+  /** כל הקבוצות שנפתחו, מ-Supabase */
+  groups: Group[];
   /** התוצאה שלי במפה הכללית: המזהה, והמפתח שמאפשר לעדכן אותה רק מהמכשיר הזה */
   myShared: { id: string; token: string } | null;
   /** יש שינוי שעוד לא הגיע למפה הכללית (למשל כשאין חיבור) */
@@ -44,6 +48,8 @@ const KEYS: Partial<Record<keyof State, string>> = {
   teams: 'idiot.teams',
   shared: 'idiot.shared',
   group: 'idiot.group',
+  myGroups: 'idiot.myGroups',
+  groups: 'idiot.groups',
   myShared: 'idiot.myShared',
   publishPending: 'idiot.publishPending',
   optOut: 'idiot.optOut',
@@ -82,6 +88,7 @@ function groupFromUrl(): string | null {
   }
 }
 
+const urlGroup = groupFromUrl();
 const stored = read<Person[] | null>(KEYS.people, null);
 // אנשי הדוגמה הישנים (בלי תפקיד) מוחלפים בארכיטיפים
 const oldDemo = !!stored && stored.some((p) => p.demo && !p.roleId);
@@ -100,7 +107,9 @@ let state: State = {
   teams: seed ? [...(oldDemo ? read<Team[]>(KEYS.teams, []).filter((t) => !t.demo) : []), ...seed.teams] : read(KEYS.teams, []),
   shared: read(KEYS.shared, []),
   sharedSync: 'loading',
-  group: groupFromUrl() ?? read(KEYS.group, ''),
+  group: urlGroup ?? read(KEYS.group, ''),
+  myGroups: [...new Set([...read<string[]>(KEYS.myGroups, read<string>(KEYS.group, '') ? [read<string>(KEYS.group, '')] : []), ...(urlGroup ? [urlGroup] : [])])].filter(Boolean),
+  groups: read(KEYS.groups, []),
   myShared: read(KEYS.myShared, null),
   publishPending: read(KEYS.publishPending, false),
   optOut: read(KEYS.optOut, false),
@@ -123,7 +132,7 @@ export function setState(patch: Partial<State>) {
 }
 
 if (seed) setState({ people: state.people, teams: state.teams });
-setState({ group: state.group });
+setState({ group: state.group, myGroups: state.myGroups, ...(urlGroup ? { publishPending: true } : {}) });
 
 export const getState = () => state;
 
@@ -155,9 +164,22 @@ export function setMyName(name: string, role?: string) {
   setState({ myName: name.trim().slice(0, 40), ...(role !== undefined ? { myRole: role.trim().slice(0, 60) } : {}), publishPending: true, optOut: false });
 }
 
+export function joinGroup(name: string) {
+  const g = name.trim().slice(0, 40);
+  if (!g || state.myGroups.includes(g)) return;
+  setState({ myGroups: [...state.myGroups, g].slice(0, 10), group: g, publishPending: true });
+}
+
+export function leaveGroup(name: string) {
+  setState({ myGroups: state.myGroups.filter((g) => g !== name), group: state.group === name ? '' : state.group, publishPending: true });
+}
+
+/** הקבוצות של תוצאה במפה הכללית (כולל תוצאות ישנות עם קבוצה אחת) */
+export const groupsOf = (r: SharedResult) => (r.groups?.length ? r.groups : r.group_name ? [r.group_name] : []);
+
 /** אבחון לאדם אחר באותו מכשיר: התוצאה הקודמת נשארת במפה הכללית, והמכשיר מתחיל זהות חדשה */
 export function newIdentity() {
-  setState({ readings: [], myName: '', myRole: '', myShared: null, optOut: false, publishPending: false });
+  setState({ readings: [], myName: '', myRole: '', myShared: null, optOut: false, publishPending: false, myGroups: [], group: '' });
 }
 
 export function addReading(r: Reading) {

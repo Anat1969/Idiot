@@ -1,4 +1,4 @@
-const CACHE = 'idiot-v1';
+const CACHE = 'idiot-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
@@ -20,10 +20,10 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('/', copy));
+          caches.open(CACHE).then((c) => c.put(self.registration.scope, copy));
           return res;
         })
-        .catch(() => caches.match('/'))
+        .catch(() => caches.match(self.registration.scope))
     );
     return;
   }

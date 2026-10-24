@@ -8,7 +8,8 @@
     "build": "tsc -p . && vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "test:e2e": "node tests/e2e.mjs",
-    "seed:sql": "node --experimental-strip-types scripts/seed-sql.ts > supabase/seed.sql"
+    "seed:sql": "node --experimental-strip-types scripts/seed-sql.ts > supabase/seed.sql",
+    "publish:gh": "bash scripts/publish-gh.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
