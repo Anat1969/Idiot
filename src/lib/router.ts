@@ -8,7 +8,7 @@ export type Route =
   | { page: 'people'; id?: string }
   | { page: 'meet'; id?: string; goal?: GoalKey }
   | { page: 'team'; id?: string }
-  | { page: 'map' }
+  | { page: 'map'; group?: string }
   | { page: 'roles'; id?: string };
 
 const COLORS = ['red', 'yellow', 'green', 'blue'];
@@ -28,7 +28,7 @@ export function parse(hash: string): Route {
     case 'team':
       return { page: 'team', id: b || undefined };
     case 'map':
-      return { page: 'map' };
+      return { page: 'map', group: b || undefined };
     case 'roles':
       return { page: 'roles', id: b || undefined };
     default:

@@ -11,7 +11,7 @@ export function createDb() {
     data: JSON.parse(m[3].replace(/''/g, "'")),
     sort: +m[4],
   }));
-  return { idiot_library: rows, idiot_results: [], tokens: new Map(), requests: [], offline: false };
+  return { idiot_library: rows, idiot_results: [], idiot_groups: [], tokens: new Map(), requests: [], offline: false };
 }
 
 const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -44,13 +44,22 @@ export async function mockSupabase(ctx, db) {
         return route.fulfill({ status: 204, body: '' });
       }
     }
-    if (url.pathname === '/rest/v1/rpc/idiot_result_update' || url.pathname === '/rest/v1/rpc/idiot_result_delete') {
+    if (url.pathname === '/rest/v1/idiot_groups') {
+      if (method === 'GET') return json(route, db.idiot_groups);
+      if (method === 'POST') {
+        const b = req.postDataJSON();
+        if (db.idiot_groups.some((g) => g.name === b.name)) return json(route, { code: '23505', message: 'duplicate' }, 409);
+        db.idiot_groups.push({ ...b, created_at: new Date().toISOString() });
+        return route.fulfill({ status: 201, body: '' });
+      }
+    }
+    if (url.pathname === '/rest/v1/rpc/idiot_result_update' || url.pathname === '/rest/v1/rpc/idiot_result_save' || url.pathname === '/rest/v1/rpc/idiot_result_delete') {
       const b = req.postDataJSON();
       const { createHash } = await import('node:crypto');
       const ok = db.tokens.get(b.p_id) === createHash('sha256').update(b.p_token).digest('hex');
       if (!ok) return json(route, false);
       if (url.pathname.endsWith('delete')) db.idiot_results = db.idiot_results.filter((r) => r.id !== b.p_id);
-      else Object.assign(db.idiot_results.find((r) => r.id === b.p_id), { name: b.p_name, role: b.p_role, group_name: b.p_group, x: b.p_x, y: b.p_y, mix: b.p_mix, traits: b.p_traits, updated_at: new Date().toISOString() });
+      else Object.assign(db.idiot_results.find((r) => r.id === b.p_id), b.p_groups ? { groups: b.p_groups, group_name: b.p_groups[0] ?? '' } : {}, { name: b.p_name, role: b.p_role, ...(b.p_groups ? {} : { group_name: b.p_group }), x: b.p_x, y: b.p_y, mix: b.p_mix, traits: b.p_traits, updated_at: new Date().toISOString() });
       return json(route, true);
     }
     if (url.pathname === '/rest/v1/idiot_library') {

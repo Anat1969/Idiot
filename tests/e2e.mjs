@@ -131,7 +131,8 @@ await shot(page, '04-me-result.png');
 
 // ---------- אנשים ----------
 await page.locator('.topnav').getByRole('link', { name: 'אנשים' }).click();
-ok((await page.locator('.person-card').count()) === 7, 'people: me card + six role archetypes');
+await page.locator('.person-card').nth(6).waitFor();
+ok((await page.locator('.person-card').count()) === 7, `people: me card + six role archetypes (${await page.locator('.person-card').count()})`);
 ok((await page.locator('.me-card b').innerText()) === 'ענת', 'people: me card with my name');
 ok((await page.locator('.dot-me b').innerText()) === 'ענת', 'people: my name on the people map');
 const tones = await page.evaluate(() => [...document.querySelectorAll('.person-card')].map((e) => getComputedStyle(e).getPropertyValue('--c').trim()));
@@ -291,9 +292,16 @@ await shot(page, '11-roles.png');
 
 // ---------- מכשיר שני: נתן נכנס מקישור הזמנה של המשפחה ----------
 await page.locator('.topnav').getByRole('link', { name: 'המפה הכללית' }).click();
-await page.getByPlaceholder('שם הקבוצה').fill('משפחה');
-await page.getByRole('button', { name: 'העתקת קישור הזמנה' }).click();
-await page.getByText('קישור ההזמנה הועתק').waitFor();
+await page.getByPlaceholder('שם הקבוצה, למשל: המשפחה').fill('משפחה');
+await page.getByPlaceholder('על מה הקבוצה (לא חובה)').fill('כל המשפחה המורחבת');
+await page.getByRole('button', { name: 'פתיחת הקבוצה' }).click();
+await page.getByText('הקבוצה "משפחה" נפתחה, והצטרפת אליה').waitFor();
+ok(db.idiot_groups.some((g) => g.name === 'משפחה' && g.about === 'כל המשפחה המורחבת'), 'groups: anyone can open a named group with a description');
+ok(page.url().includes('#/map/'), 'groups: opening a group shows its own map');
+for (let i = 0; i < 30 && !(db.idiot_results.find((r) => r.name === 'ענת')?.groups ?? []).includes('משפחה'); i++) await page.waitForTimeout(100);
+ok((db.idiot_results.find((r) => r.name === 'ענת')?.groups ?? []).includes('משפחה'), 'groups: the creator joins the group on the general map');
+await page.locator('.group-card', { hasText: 'משפחה' }).getByRole('button', { name: 'קישור הזמנה' }).click();
+await page.getByText('קישור ההזמנה לקבוצה "משפחה" הועתק').waitFor();
 const invite = await clip(page);
 ok(invite.includes('?g=%D7%9E%D7%A9%D7%A4%D7%97%D7%94#/me'), `shared: invite link carries the group (${invite})`);
 {
@@ -306,7 +314,7 @@ ok(invite.includes('?g=%D7%9E%D7%A9%D7%A4%D7%97%D7%94#/me'), `shared: invite lin
   await answerAll(np, SELF, 2);
   await np.getByLabel('השם והתפקיד שלי על המפה').fill('נתן');
   await np.getByRole('button', { name: 'להוסיף אותי למפה' }).click();
-  await np.getByText('מופיע במפה הכללית בקבוצה "משפחה"').waitFor();
+  await np.getByText('מופיע במפה הכללית ובקבוצות: משפחה').waitFor();
   ok(db.idiot_results.some((r) => r.name === 'נתן' && r.group_name === 'משפחה'), 'shared: a second device publishes into the family group');
   await np.getByLabel('השם והתפקיד שלי על המפה').fill('נתן ש.');
   await np.getByRole('button', { name: 'עדכון' }).click();
@@ -320,7 +328,16 @@ await page.locator('.results tbody tr').nth(1).waitFor();
 ok((await page.locator('.results tbody tr').count()) === 2, 'shared: everyone on the general map');
 ok((await page.locator('.shared-top .dot').count()) === 2, 'shared: both dots on the map');
 await page.getByRole('radio', { name: /משפחה/ }).click();
-ok((await page.locator('.results tbody tr').count()) === 1 && (await page.locator('.results tbody').innerText()).includes('נתן ש.'), 'shared: filter by group');
+ok((await page.locator('.results tbody tr').count()) === 2 && (await page.locator('.results tbody').innerText()).includes('נתן ש.'), 'groups: the group map shows only its members');
+ok((await page.locator('.page-head h1').innerText()) === 'משפחה' && (await page.locator('.page-head .lead').innerText()).includes('המשפחה המורחבת'), 'groups: group page shows its name and description');
+await page.getByPlaceholder('שם הקבוצה, למשל: המשפחה').fill('צוות התכנון');
+await page.getByRole('button', { name: 'פתיחת הקבוצה' }).click();
+await page.getByText('הקבוצה "צוות התכנון" נפתחה').waitFor();
+for (let i = 0; i < 30 && (db.idiot_results.find((r) => r.name === 'ענת')?.groups ?? []).length < 2; i++) await page.waitForTimeout(100);
+ok(JSON.stringify(db.idiot_results.find((r) => r.name === 'ענת').groups) === JSON.stringify(['משפחה', 'צוות התכנון']), 'groups: one person can belong to several groups');
+await page.locator('.group-card', { hasText: 'צוות התכנון' }).getByRole('button', { name: 'יציאה מהקבוצה' }).click();
+for (let i = 0; i < 30 && (db.idiot_results.find((r) => r.name === 'ענת')?.groups ?? []).length > 1; i++) await page.waitForTimeout(100);
+ok(JSON.stringify(db.idiot_results.find((r) => r.name === 'ענת').groups) === JSON.stringify(['משפחה']), 'groups: leaving a group');
 await page.getByRole('radio', { name: /כולם/ }).click();
 ok((await page.locator('.hist-col').count()) === 4 && (await page.locator('.radar').count()) === 1, 'shared: intensity histogram and group radar');
 await shot(page, '13-shared-map.png');

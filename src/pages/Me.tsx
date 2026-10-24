@@ -10,7 +10,7 @@ import { publishMe, removeMe } from '../lib/shared';
 import { Explain, TraitBars, TraitRadar } from '../components/Traits';
 import { traitInfo } from '../data/traits';
 import { confirmAction, toast } from '../lib/feedback';
-import { addReading, newIdentity, setMyName, useStore } from '../lib/store';
+import { addReading, groupsOf, newIdentity, setMyName, useStore } from '../lib/store';
 import { blend, coords, toneStyle } from '../lib/color';
 import { copyText, describe } from '../lib/text';
 import type { Color, Point, Reading } from '../lib/types';
@@ -135,6 +135,7 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
   const pending = useStore((s) => s.publishPending);
   const optOut = useStore((s) => s.optOut);
   const group = useStore((s) => s.group);
+  const myGroups = useStore((s) => s.myGroups);
   const [name, setName] = useState(myName);
   const [myRoleDraft, setMyRoleDraft] = useState(myRole);
   const [model, setModel] = useState<Color | null>(null);
@@ -146,7 +147,7 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
   const traits = r.traits ?? null;
   const shownModel = model ?? main.color;
   const others = shared.filter((x) => x.id !== myShared?.id);
-  const pool = group ? others.filter((x) => x.group_name === group) : others;
+  const pool = group ? others.filter((x) => groupsOf(x).includes(group)) : others;
   const avg = averageTraits(pool.length >= 2 ? pool : others);
   const avgLabel = avg ? `ממוצע של ${avg.n} אנשים ${pool.length >= 2 && group ? `בקבוצה "${group}"` : 'במפה הכללית'}` : '';
   const answered = Math.round(Object.values(r.mix).reduce((a, b) => a + b, 0) ? (traits ? 16 : 12) : 0);
@@ -189,7 +190,7 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
         ? sharedSync === 'offline'
           ? 'נשמר במכשיר. יישלח למפה הכללית כשיהיה חיבור'
           : 'נשלח למפה הכללית...'
-        : `מופיע במפה הכללית${group ? ` בקבוצה "${group}"` : ''}`;
+        : `מופיע במפה הכללית${myGroups.length ? ` ובקבוצות: ${myGroups.join(', ')}` : ''}`;
 
   return (
     <div className="page">

@@ -2,11 +2,13 @@
 import { toast } from './feedback';
 import { getState, setState } from './store';
 import { supa } from './supa';
-import type { SharedResult } from './types';
+import type { Group, SharedResult } from './types';
+import { joinGroup } from './store';
 
-const COLS = 'id,name,role,group_name,x,y,mix,traits,created_at,updated_at';
+const COLS = 'id,name,role,group_name,groups,x,y,mix,traits,created_at,updated_at';
 
 export async function loadShared() {
+  loadGroups();
   const res = await supa.from('idiot_results').select(COLS).order('created_at');
   if (res.error) {
     setState({ sharedSync: 'offline' });
@@ -35,14 +37,14 @@ export async function publishMe(): Promise<boolean> {
   if (!r || !s.myName || s.optOut || busy) return false;
   busy = true;
   try {
-    const row = { name: s.myName, role: s.myRole, group_name: s.group, x: r.x, y: r.y, mix: r.mix, traits: r.traits ?? {} };
+    const row = { name: s.myName, role: s.myRole, group_name: s.myGroups[0] ?? '', groups: s.myGroups, x: r.x, y: r.y, mix: r.mix, traits: r.traits ?? {} };
     if (s.myShared) {
-      const up = await supa.rpc('idiot_result_update', {
+      const up = await supa.rpc('idiot_result_save', {
         p_id: s.myShared.id,
         p_token: s.myShared.token,
         p_name: row.name,
         p_role: row.role,
-        p_group: row.group_name,
+        p_groups: row.groups,
         p_x: row.x,
         p_y: row.y,
         p_mix: row.mix,
@@ -98,4 +100,28 @@ export async function removeMe() {
   setState({ myShared: null, publishPending: false, optOut: true });
   toast('הוסרת מהמפה הכללית');
   loadShared();
+}
+
+export async function loadGroups() {
+  const res = await supa.from('idiot_groups').select('name,about,created_at').order('created_at');
+  if (!res.error) setState({ groups: res.data as Group[] });
+}
+
+/** פתיחת קבוצה חדשה, והצטרפות אליה. שם שכבר קיים: פשוט מצטרפים */
+export async function createGroup(name: string, about: string): Promise<boolean> {
+  const g = name.trim().slice(0, 40);
+  if (!g) return false;
+  const exists = getState().groups.some((x) => x.name === g);
+  if (!exists) {
+    const ins = await supa.from('idiot_groups').insert({ name: g, about: about.trim().slice(0, 200) });
+    if (ins.error && ins.error.code !== '23505') {
+      toast('פתיחת הקבוצה נכשלה. נסו שוב', 'error');
+      return false;
+    }
+  }
+  joinGroup(g);
+  await loadGroups();
+  publishMe();
+  toast(exists ? `הצטרפת לקבוצה "${g}"` : `הקבוצה "${g}" נפתחה, והצטרפת אליה`);
+  return true;
 }

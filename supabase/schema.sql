@@ -92,3 +92,30 @@ begin
 end; $$;
 revoke execute on function public.idiot_result_update(uuid, text, text, text, text, real, real, jsonb, jsonb), public.idiot_result_delete(uuid, text) from public;
 grant execute on function public.idiot_result_update(uuid, text, text, text, text, real, real, jsonb, jsonb), public.idiot_result_delete(uuid, text) to anon, authenticated;
+
+-- קבוצות שכל אחד פותח, וחברות בכמה קבוצות
+alter table public.idiot_results add column if not exists groups text[] not null default '{}' check (cardinality(groups) <= 10);
+grant select (groups), insert (groups) on public.idiot_results to anon, authenticated;
+create table if not exists public.idiot_groups (
+  name text primary key check (char_length(btrim(name)) between 1 and 40),
+  about text not null default '' check (char_length(about) <= 200),
+  created_at timestamptz not null default now()
+);
+alter table public.idiot_groups enable row level security;
+create policy idiot_groups_read on public.idiot_groups for select using (true);
+create policy idiot_groups_insert on public.idiot_groups for insert with check (true);
+create policy idiot_groups_delete on public.idiot_groups for delete using (public.idiot_is_admin());
+grant select on public.idiot_groups to anon, authenticated;
+grant insert (name, about) on public.idiot_groups to anon, authenticated;
+grant delete on public.idiot_groups to anon, authenticated;
+create or replace function public.idiot_result_save(p_id uuid, p_token text, p_name text, p_role text, p_groups text[], p_x real, p_y real, p_mix jsonb, p_traits jsonb)
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  update public.idiot_results set name = p_name, role = coalesce(p_role, ''), groups = coalesce(p_groups, '{}'), group_name = coalesce(p_groups[1], ''),
+    x = p_x, y = p_y, mix = p_mix, traits = p_traits, updated_at = now()
+  where id = p_id and token_hash = encode(sha256(convert_to(p_token, 'UTF8')), 'hex')
+    and pg_column_size(p_mix) < 2000 and pg_column_size(p_traits) < 2000;
+  return found;
+end; $$;
+revoke execute on function public.idiot_result_save(uuid, text, text, text, text[], real, real, jsonb, jsonb) from public;
+grant execute on function public.idiot_result_save(uuid, text, text, text, text[], real, real, jsonb, jsonb) to anon, authenticated;
