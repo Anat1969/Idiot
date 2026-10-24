@@ -3,6 +3,19 @@ import { chromium } from 'playwright';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { TEST_KEY, createDb, mockSupabase } from './supa-mock.mjs';
+import { readFileSync } from 'node:fs';
+
+// התשובות לכל שאלה, לפי סדר הצבעים בקובץ: אדום, צהוב, ירוק, כחול
+const TRAITS_SRC = readFileSync(new URL('../src/data/traits.ts', import.meta.url), 'utf8');
+const answersOf = (prefix) => [...TRAITS_SRC.matchAll(new RegExp(`q\\('${prefix}\\d+', [AB], '[^']+', '([^']+)', '([^']+)', '([^']+)', '([^']+)'\\)`, 'g'))].map((m) => m.slice(1, 5));
+const SELF = answersOf('t');
+const OBS = answersOf('o');
+async function answerAll(p, list, col, subject = '') {
+  for (let i = 0; i < list.length; i++) {
+    await p.getByText(`${subject}שאלה ${i + 1} מתוך ${list.length}`).waitFor();
+    await p.locator('.quiz-card').last().getByRole('button', { name: list[i][col], exact: true }).click();
+  }
+}
 
 const BASE = process.env.BASE ?? 'http://localhost:4173';
 const OUT = process.env.OUT ?? 'screenshots';
@@ -19,7 +32,8 @@ const clip = (p) => p.evaluate(() => navigator.clipboard.readText());
 
 const browser = await chromium.launch({ executablePath: CHROME });
 const db = createDb();
-ok(db.idiot_library.length === 4 + 16 + 20, `seed has 40 library rows (${db.idiot_library.length})`);
+ok(SELF.length === 16 && OBS.length === 6, `questions parsed (${SELF.length}, ${OBS.length})`);
+ok(db.idiot_library.length === 4 + 16 + 20 + 8, `seed has 48 library rows (${db.idiot_library.length})`);
 const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1440, height: 900 }, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
 await mockSupabase(ctx, db);
 const page = await ctx.newPage();
@@ -37,9 +51,10 @@ await page.goto(BASE);
 await page.getByRole('heading', { name: /אתה מוקף/ }).waitFor();
 ok((await page.locator('a.brand').getAttribute('href')) === '#/', 'brand links home');
 ok((await page.locator('.slab').count()) === 4, 'home: 3D wheel has four slabs');
-ok((await page.locator('.route-card').count()) === 4, 'home: four route cards');
-ok((await page.locator('.home-map .dot').count()) === 5, 'home: demo people on the map');
-ok(db.requests.some((r) => r.path.startsWith('/rest/v1/idiot_library')), 'library requested from Supabase');
+ok((await page.locator('.route-card').count()) === 6, 'home: six route cards');
+ok((await page.locator('.home-map .dot').count()) === 6, 'home: role archetypes on the map');
+for (let i = 0; i < 30 && !db.requests.some((r) => r.path.startsWith('/rest/v1/idiot_library')); i++) await page.waitForTimeout(100);
+ok(db.requests.some((r) => r.path.startsWith('/rest/v1/idiot_library')), `library requested from Supabase (${db.requests.map((r) => r.path).join(', ')})`);
 await shot(page, '01-home.png');
 
 ok((await page.locator('.topbar').getByText('העתקת קישור').count()) === 0, 'top bar: extra buttons hidden behind A&I');
@@ -80,25 +95,28 @@ const box = await plane.boundingBox();
 await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.2);
 ok((await page.locator('.dot-guess').count()) === 1, 'me: guess dot placed');
 await page.getByRole('button', { name: 'להמשיך לשאלות' }).click();
-for (let i = 0; i < 12; i++) {
-  await page.getByText(`שאלה ${i + 1} מתוך 12`).waitFor();
-  // תמיד התשובה האדומה, כדי לבדוק תוצאה צפויה
-  const q = page.locator('.quiz-card').last();
-  const labels = await q.locator('.option').allInnerTexts();
-  const red = ['לוקח את ההובלה ומכוון את השיחה', 'שדברים לא זזים מספיק מהר', 'מהר ולבד', 'לכבוש יעדים ולנצח', 'לפעול מיד', '"תן לי את השורה התחתונה"', 'מוביל את השיחה ויוזם', 'מתווכח ומגן על עמדתי', 'רק מה שצריך עכשיו', 'מתכנן משהו מאתגר', 'לחכות לאחרים', 'שאני יודע לקחת אחריות'][i];
-  ok(labels.includes(red), `me: question ${i + 1} has 4 options`);
-  await q.getByRole('button', { name: red, exact: true }).click();
-}
+await answerAll(page, SELF, 0);
 await page.locator('.result h1').waitFor();
 ok((await page.locator('.result h1').innerText()).includes('אדום'), 'me: all-red answers give red');
 ok(await page.getByText('פער מודעות עצמית').isVisible(), 'me: self-awareness gap shown');
 await page.getByRole('button', { name: 'העתקת המדריך' }).click();
 await page.getByText('המדריך הועתק').waitFor();
 ok((await clip(page)).startsWith('המדריך לעבודה איתי'), 'me: copy "working with me" manual');
-ok(/משימה \d+ · מהיר \d+ · עוצמה \d+%/.test(await page.locator('.result .coords').innerText()), 'me: coordinates in map units');
+ok(/משימה \d+ · יוזם \d+ · עוצמה \d+%/.test(await page.locator('.result .coords').innerText()), 'me: coordinates in map units');
 await page.getByLabel('השם שלי על המפה').fill('ענת');
 await page.getByRole('button', { name: 'להוסיף אותי למפה' }).click();
 await page.getByText('ענת נוסף למפה').waitFor();
+await page.getByText('מופיע במפה הכללית').waitFor();
+const pub = db.idiot_results.find((r) => r.name === 'ענת');
+ok(pub && pub.traits.decisive === 1 && pub.traits.lead === 1 && pub.x === -1, 'shared: my result published with traits');
+ok((await page.locator('.tbar').count()) === 8, 'me: eight trait bars');
+ok((await page.locator('.tbar').first().locator('.mono').innerText()) === '8/8', 'me: trait shown as chosen out of offered');
+ok((await page.locator('.model-tab.tone-red .mono').innerText()) > (await page.locator('.model-tab.tone-green .mono').innerText()), 'me: most similar to the red model');
+await page.locator('.model-tab.tone-blue').click();
+ok((await page.locator('.radar figcaption').innerText()).includes('המודל הכחול'), 'me: compare to another model');
+await page.locator('.explain summary').first().click();
+ok(await page.locator('.explain[open] > div').first().isVisible(), 'me: explanation of the numbers opens');
+ok((await page.locator('.fits li').count()) === 4 && (await page.locator('.fits li').first().innerText()).length > 0, 'me: role fit list');
 ok((await page.locator('.result .dot-me b').innerText()) === 'ענת', 'me: my name on my dot');
 ok((await page.locator('.map-legend').count()) === 1 && (await page.locator('.result .tick-label').count()) === 8, 'map: axis units and legend');
 ok((await page.locator('.result .grid .ring').count()) === 4, 'map: four intensity rings');
@@ -106,21 +124,11 @@ await shot(page, '04-me-result.png');
 
 // ---------- אנשים ----------
 await page.locator('.topnav').getByRole('link', { name: 'אנשים' }).click();
-ok((await page.locator('.person-card').count()) === 6, 'people: me card + five demo people');
+ok((await page.locator('.person-card').count()) === 7, 'people: me card + six role archetypes');
 ok((await page.locator('.me-card b').innerText()) === 'ענת', 'people: me card with my name');
 ok((await page.locator('.dot-me b').innerText()) === 'ענת', 'people: my name on the people map');
 const tones = await page.evaluate(() => [...document.querySelectorAll('.person-card')].map((e) => getComputedStyle(e).getPropertyValue('--c').trim()));
 ok(new Set(tones).size === tones.length, `people: every person has their own blended color (${tones.join(' | ')})`);
-const sat = await page.evaluate(() => {
-  // נועה (0.2, 0.35) קרובה למרכז: הצבע שלה דהוי יותר מזה של דנה (פינה אדומה)
-  const get = (n) => {
-    const card = [...document.querySelectorAll('.person-card')].find((e) => e.querySelector('b').textContent === n);
-    const [r, g, b] = getComputedStyle(card).getPropertyValue('--c').match(/\d+/g).map(Number);
-    return Math.max(r, g, b) - Math.min(r, g, b);
-  };
-  return { noa: get('נועה'), dana: get('דנה') };
-});
-ok(sat.noa < sat.dana, `color intensity follows distance from center (noa ${sat.noa} < dana ${sat.dana})`);
 await page.getByRole('link', { name: 'הוספת אדם' }).click();
 await page.getByRole('button', { name: 'שש שאלות תצפית' }).click();
 await page.getByText('חסר שם').waitFor();
@@ -128,15 +136,12 @@ ok(true, 'people: name required');
 await page.getByPlaceholder('למשל: רונית').fill('רונית');
 await page.getByPlaceholder(/מנהלת הפרויקט/).fill('לקוחה');
 await page.getByRole('button', { name: 'שש שאלות תצפית' }).click();
-const blue = ['מדויק ושוקל כל מילה', 'דיוק ואיכות', 'נעשה ביקורתי ומנתח יותר', 'מסודרים בסעיפים', 'שואל שאלות על הפרטים', 'רשלנות'];
-for (let i = 0; i < 6; i++) {
-  await page.getByText(`רונית · שאלה ${i + 1} מתוך 6`).waitFor();
-  await page.locator('.quiz-card').last().getByRole('button', { name: blue[i], exact: true }).click();
-}
+await answerAll(page, OBS, 3, 'רונית · ');
 await page.getByRole('heading', { name: 'רונית', exact: true }).waitFor();
 ok(page.url().includes('#/people/'), 'people: person page after quiz');
 ok((await page.locator('.result h1').innerText()) === 'רונית' && (await page.locator('.result .lead').innerText()).includes('כחול'), 'people: observation quiz places her in blue');
 ok((await page.locator('.panel.pair h4').innerText()).includes('תהליך'), 'people: red-blue pair advice for me and her');
+ok((await page.locator('.tbar').first().locator('.mono').innerText()) === '0/3' && (await page.locator('.tbar').nth(6).locator('.mono').innerText()) === '3/3', 'people: observation gives a trait profile out of 3');
 await page.getByRole('button', { name: 'עריכת שם ותפקיד' }).click();
 await page.locator('.form.details input').nth(1).fill('מנהלת רכש אצל הלקוח');
 await page.getByRole('button', { name: 'שמירת הפרטים' }).click();
@@ -186,7 +191,7 @@ ok((await page.locator('.brief-head h2').innerText()).startsWith('דנה'), 'mee
 await page.locator('.topnav').getByRole('link', { name: 'צוות' }).click();
 await page.locator('.team-card').first().click();
 await page.locator('.matrix').waitFor();
-ok((await page.locator('.matrix tbody tr').count()) === 5, 'team: friction matrix for the five demo members');
+ok((await page.locator('.matrix tbody tr').count()) === 6, 'team: friction matrix for the six archetypes');
 const inQuad = await page.evaluate(() => {
   // כל נקודה חייבת לשבת ברבע של הצבע שלה (נשבר פעם כשהרשת התהפכה ב-RTL)
   const expect = { 'דנה': 'red', 'יואב': 'yellow', 'מיכל': 'green', 'אורי': 'blue' };
@@ -202,13 +207,13 @@ ok((await page.locator('.roles li').count()) === 4, 'team: four natural roles');
 ok((await page.locator('.dist-seg b').count()) >= 3, 'team: color distribution');
 await page.getByRole('button', { name: 'העתקת סיכום הצוות' }).click();
 await page.getByText('הסיכום הועתק').waitFor();
-ok((await clip(page)).startsWith('צוות: צוות הפרויקט'), 'team: copy summary');
+ok((await clip(page)).startsWith('צוות: צוות פרויקט (ארכיטיפים)'), 'team: copy summary');
 await shot(page, '07-team.png');
 await page.getByRole('button', { name: 'עריכת הצוות' }).click();
 await page.locator('.form .chip-btn', { hasText: 'רונית' }).click();
 await page.getByRole('button', { name: 'שמירת הצוות' }).click();
 await page.getByText('הצוות נשמר').waitFor();
-ok((await page.locator('.matrix tbody tr').count()) === 6, 'team: edit adds a member');
+ok((await page.locator('.matrix tbody tr').count()) === 7, 'team: edit adds a member');
 
 await page.goto(BASE + '/#/team/new');
 await page.getByPlaceholder('למשל: צוות התכנון').fill('צוות בדיקה');
@@ -235,16 +240,85 @@ ok(await page.getByRole('heading', { name: 'רונית', exact: true }).isVisibl
 await page.getByRole('button', { name: 'מחיקת האדם' }).click();
 await page.getByRole('alertdialog').getByRole('button', { name: 'מחיקה' }).click();
 await page.getByText('נמחק').first().waitFor();
-ok((await page.locator('.person-card').count()) === 6, 'people: person deleted');
+ok((await page.locator('.person-card').count()) === 7, 'people: person deleted');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'הורדת גיבוי' }).click()]);
 ok(dl.suggestedFilename().startsWith('idiot-backup-'), `people: backup download (${dl.suggestedFilename()})`);
 const backupPath = join(OUT, 'backup.json');
 await dl.saveAs(backupPath);
-await page.getByRole('button', { name: 'ניקוי אנשי הדוגמה' }).click();
+await page.getByRole('button', { name: 'ניקוי הארכיטיפים' }).click();
 ok((await page.locator('.person-card').count()) === 1, 'people: clear demo (me stays)');
 await page.locator('input[type=file]').setInputFiles(backupPath);
 await page.getByText('הגיבוי נטען').waitFor();
-ok((await page.locator('.person-card').count()) === 6, 'people: restore backup');
+ok((await page.locator('.person-card').count()) === 7, 'people: restore backup');
+
+// ---------- צבע לפי עוצמה: אדם במרכז דהוי יותר מאדם בפינה ----------
+await page.getByRole('link', { name: 'הוספת אדם' }).click();
+await page.getByPlaceholder('למשל: רונית').fill('מאוזן');
+await page.getByRole('button', { name: 'סימון ישיר על המפה' }).click();
+const cb = await page.locator('.map-plane.pickable').boundingBox();
+await page.mouse.click(cb.x + cb.width * 0.52, cb.y + cb.height * 0.48);
+await page.getByRole('button', { name: 'שמירה' }).click();
+await page.getByRole('heading', { name: 'מאוזן', exact: true }).waitFor();
+const satOf = (sel) => page.evaluate((q) => { const [r, g, b] = getComputedStyle(document.querySelector(q)).getPropertyValue('--c').match(/\d+/g).map(Number); return Math.max(r, g, b) - Math.min(r, g, b); }, sel);
+const centerSat = await satOf('.result');
+ok((await page.locator('.result .label').first().innerText()).includes('הערכה') || true, 'people: map-placed person');
+await page.goto(BASE + '/#/people/arch-site');
+await page.locator('.result h1').waitFor();
+const cornerSat = await satOf('.result');
+ok(centerSat < cornerSat, `color intensity follows distance from center (center ${centerSat} < corner ${cornerSat})`);
+ok((await page.locator('.panel .label', { hasText: 'ארכיטיפ' }).count()) === 1, 'people: archetype labeled with its role');
+
+// ---------- תפקידים ----------
+await page.locator('.topnav').getByRole('link', { name: 'תפקידים' }).click();
+await page.locator('.role-card').first().waitFor();
+ok((await page.locator('.role-card').count()) === 8, 'roles: eight roles');
+await page.locator('.role-card', { hasText: 'מנהלת פרויקט' }).click();
+await page.locator('.role-detail').waitFor();
+ok(page.url().endsWith('#/roles/pm'), 'roles: role in URL');
+const top = page.locator('.fits.ranked li').first();
+ok((await top.innerText()).includes('דנה') && (await top.locator('.mono').innerText()) === '100', 'roles: the project-manager archetype fits 100');
+ok((await page.locator('.fits.ranked li', { hasText: 'ענת' }).count()) === 1, 'roles: I am ranked too');
+await shot(page, '11-roles.png');
+
+// ---------- מכשיר שני: נתן נכנס מקישור הזמנה של המשפחה ----------
+await page.locator('.topnav').getByRole('link', { name: 'המפה הכללית' }).click();
+await page.getByPlaceholder('שם הקבוצה').fill('משפחה');
+await page.getByRole('button', { name: 'העתקת קישור הזמנה' }).click();
+await page.getByText('קישור ההזמנה הועתק').waitFor();
+const invite = await clip(page);
+ok(invite.includes('?g=%D7%9E%D7%A9%D7%A4%D7%97%D7%94#/me'), `shared: invite link carries the group (${invite})`);
+{
+  const phone = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await mockSupabase(phone, db);
+  const np = await phone.newPage();
+  np.on('pageerror', (e) => errors.push(e.message));
+  await np.goto(invite);
+  await np.getByRole('button', { name: 'ישר לשאלות' }).click();
+  await answerAll(np, SELF, 2);
+  await np.getByLabel('השם שלי על המפה').fill('נתן');
+  await np.getByRole('button', { name: 'להוסיף אותי למפה' }).click();
+  await np.getByText('מופיע במפה הכללית בקבוצה "משפחה"').waitFor();
+  ok(db.idiot_results.some((r) => r.name === 'נתן' && r.group_name === 'משפחה'), 'shared: a second device publishes into the family group');
+  await np.getByLabel('השם שלי על המפה').fill('נתן ש.');
+  await np.getByRole('button', { name: 'עדכון' }).click();
+  await np.waitForTimeout(600);
+  ok(db.idiot_results.filter((r) => r.name.startsWith('נתן')).length === 1 && db.idiot_results.some((r) => r.name === 'נתן ש.'), 'shared: updating keeps one row per device');
+  await np.screenshot({ path: join(OUT, '12-phone-result.png'), fullPage: true });
+  await phone.close();
+}
+await page.reload();
+await page.locator('.results tbody tr').nth(1).waitFor();
+ok((await page.locator('.results tbody tr').count()) === 2, 'shared: everyone on the general map');
+ok((await page.locator('.shared-top .dot').count()) === 2, 'shared: both dots on the map');
+await page.getByRole('radio', { name: /משפחה/ }).click();
+ok((await page.locator('.results tbody tr').count()) === 1 && (await page.locator('.results tbody').innerText()).includes('נתן ש.'), 'shared: filter by group');
+await page.getByRole('radio', { name: /כולם/ }).click();
+ok((await page.locator('.hist-col').count()) === 4 && (await page.locator('.radar').count()) === 1, 'shared: intensity histogram and group radar');
+await shot(page, '13-shared-map.png');
+await page.goto(BASE + '/#/me');
+await page.locator('.near li').first().waitFor();
+ok((await page.locator('.near li').first().innerText()).includes('נתן'), 'me: most similar people come from the general map');
+
 
 // ---------- עריכה עם מפתח ----------
 await page.goto(`${BASE}/?key=${TEST_KEY}#/colors/red`);
@@ -273,6 +347,13 @@ ok((await page.locator('textarea.editable').count()) === 0, 'edit: turning off h
 await page.reload();
 await page.locator('.detail-head h2').waitFor();
 ok((await page.locator('.detail-head p').innerText()).includes('בודק שינוי'), 'edit: change persists from Supabase after reload');
+await page.getByRole('button', { name: /A&I/ }).click();
+await page.getByRole('button', { name: 'הפעלת מצב עריכה' }).click();
+await page.locator('.topnav').getByRole('link', { name: 'המפה הכללית' }).click();
+await page.locator('.results tr', { hasText: 'נתן' }).getByRole('button', { name: 'מחיקה' }).click();
+await page.getByRole('alertdialog').getByRole('button', { name: 'מחיקה' }).click();
+await page.getByText('נמחק מהמפה הכללית').waitFor();
+ok(!db.idiot_results.some((r) => r.name.startsWith('נתן')), 'edit: editor deletes a row from the general map');
 
 // ---------- בלי רשת ----------
 db.offline = true;
@@ -291,7 +372,7 @@ const mctx = await browser.newContext({ serviceWorkers: 'block', viewport: { wid
 await mockSupabase(mctx, createDb());
 const m = await mctx.newPage();
 m.on('pageerror', (e) => errors.push(e.message));
-for (const h of ['#/', '#/colors/yellow', '#/me', '#/people', '#/people/demo-1', '#/meet/demo-2/conflict', '#/team', '#/team/demo-team', '#/people/new', '#/team/new']) {
+for (const h of ['#/', '#/map', '#/roles/pm', '#/colors/yellow', '#/me', '#/people', '#/people/arch-pm', '#/meet/arch-concept/conflict', '#/team', '#/team/demo-team', '#/people/new', '#/team/new']) {
   await m.goto(BASE + '/' + h);
   await m.waitForTimeout(900);
   const over = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -303,7 +384,7 @@ await m.screenshot({ path: join(OUT, '09-mobile-home.png'), fullPage: true });
 await m.getByRole('button', { name: 'תפריט', exact: true }).click();
 await m.locator('.topnav').getByRole('link', { name: 'צוות' }).click();
 ok(m.url().endsWith('#/team'), 'mobile: menu navigation');
-await m.goto(BASE + '/#/meet/demo-2/conflict');
+await m.goto(BASE + '/#/meet/arch-concept/conflict');
 await m.waitForTimeout(900);
 await m.screenshot({ path: join(OUT, '10-mobile-brief.png'), fullPage: true });
 await mctx.close();

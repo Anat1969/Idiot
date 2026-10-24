@@ -7,11 +7,13 @@ import type { Route } from '../lib/router';
 type BIPEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
 const NAV = [
+  { href: '#/map', label: 'המפה הכללית', page: 'map' },
   { href: '#/colors', label: 'הצבעים', page: 'colors' },
   { href: '#/me', label: 'מי אני', page: 'me' },
   { href: '#/people', label: 'אנשים', page: 'people' },
   { href: '#/meet', label: 'הכנה לשיחה', page: 'meet' },
   { href: '#/team', label: 'צוות', page: 'team' },
+  { href: '#/roles', label: 'תפקידים', page: 'roles' },
 ] as const;
 
 export function TopBar({ route }: { route: Route }) {

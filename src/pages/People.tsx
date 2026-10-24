@@ -4,14 +4,16 @@ import { ColorMap, type Dot } from '../components/ColorMap';
 import { Editable } from '../components/Editable';
 import { Quiz } from '../components/Quiz';
 import { Tilt } from '../components/Tilt';
-import { observeQuestions } from '../data/starter';
-import { colorAt, friction, frictionLabel, score } from '../lib/engine';
+import { observeQuestions } from '../data/traits';
+import { colorAt, fit, friction, frictionLabel, score } from '../lib/engine';
 import { confirmAction, toast } from '../lib/feedback';
 import { go } from '../lib/router';
 import { clearDemo, deletePerson, exportData, importData, savePerson, useStore } from '../lib/store';
 import { describe } from '../lib/text';
+import { Explain, TraitBars } from '../components/Traits';
+import { personTraits } from '../lib/compare';
 import { coords, toneStyle } from '../lib/color';
-import type { Person, Point } from '../lib/types';
+import type { Person, Point, Traits } from '../lib/types';
 
 export function People({ id }: { id?: string }) {
   const people = useStore((s) => s.people);
@@ -96,7 +98,7 @@ function PeopleList() {
                       <span>{d.main.name}</span>
                       <small>{f !== null ? `${frictionLabel(f)} · ${f}` : coords(p).i}</small>
                     </span>
-                    {p.demo && <span className="tag">דוגמה</span>}
+                    {p.demo && <span className="tag">ארכיטיפ</span>}
                   </a>
                 </Tilt>
               </motion.div>
@@ -117,7 +119,7 @@ function PeopleList() {
           </button>
           {people.some((p) => p.demo) && (
             <button className="btn ghost sm" onClick={() => (clearDemo(), toast('הדוגמה נוקתה'))}>
-              ניקוי אנשי הדוגמה
+              ניקוי הארכיטיפים
             </button>
           )}
           <input
@@ -146,8 +148,8 @@ function AddPerson() {
   const [mode, setMode] = useState<'form' | 'quiz' | 'map'>('form');
   const [point, setPoint] = useState<Point | null>(null);
 
-  const finish = (p: Point) => {
-    const person = savePerson({ name: name.trim(), role: role.trim(), note: '', x: p.x, y: p.y });
+  const finish = (p: Point & { traits?: Traits }) => {
+    const person = savePerson({ name: name.trim(), role: role.trim(), note: '', x: p.x, y: p.y, ...(p.traits ? { traits: p.traits } : {}) });
     toast(`${person.name} נוסף למפה`);
     go(`/people/${person.id}`, true);
   };
@@ -231,7 +233,7 @@ function PersonPage({ person }: { person: Person }) {
           onCancel={() => setRequiz(false)}
           onDone={(a) => {
             const s = score(a, observeQuestions);
-            savePerson({ ...person, x: s.x, y: s.y });
+            savePerson({ ...person, x: s.x, y: s.y, traits: s.traits, roleId: undefined });
             setRequiz(false);
             toast('ההערכה עודכנה');
           }}
@@ -244,6 +246,8 @@ function PersonPage({ person }: { person: Person }) {
     ...(reading ? [{ id: 'me', label: myName || 'אני', kind: 'me' as const, x: reading.x, y: reading.y }] : []),
   ];
   const cc = coords(person);
+  const pt = personTraits(person);
+  const fits = Object.values(lib.roles).map((role) => ({ role, f: fit(pt, role) })).sort((a, b) => b.f - a.f);
 
   return (
     <div className="page">
@@ -312,10 +316,43 @@ function PersonPage({ person }: { person: Person }) {
           dots={dots}
           size="md"
           tilt={!moving}
-          onPick={moving ? (p) => savePerson({ ...person, ...p }) : undefined}
+          onPick={moving ? (p) => savePerson({ ...person, ...p, traits: undefined, roleId: undefined }) : undefined}
           caption={moving ? 'לחצו במקום החדש' : undefined}
         />
       </motion.section>
+
+      <section className="panel">
+        <div className="row between">
+          <h3>פרופיל התכונות</h3>
+          <span className="label">{person.roleId ? `ארכיטיפ: ${lib.roles[person.roleId]?.name ?? ''}` : person.traits ? 'לפי שש שאלות תצפית' : 'הערכה לפי המיקום על המפה'}</span>
+        </div>
+        <div className="trait-layout">
+          <TraitBars traits={pt} offered={person.traits && !person.roleId ? 3 : undefined} />
+          <div className="strengths">
+            <h4>התאמה לתפקידים</h4>
+            <ul className="fits">
+              {fits.slice(0, 4).map(({ role, f }) => (
+                <li key={role.id}>
+                  <a href={`#/roles/${role.id}`}>{role.name}</a>
+                  <span className="bar">
+                    <i style={{ width: `${f}%` }} />
+                  </span>
+                  <span className="mono">{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <Explain>
+          <p>
+            {person.roleId
+              ? 'זה ארכיטיפ: אדם לדוגמה שהפרופיל שלו הוא בדיוק מה שהתפקיד דורש. הוא מראה איך תפקיד מסוים נראה על המפה ובתכונות.'
+              : person.traits
+                ? 'כל תכונה הוצעה 3 פעמים בשאלות התצפית. המספר הוא כמה פעמים בחרת בה כשתיארת את האדם.'
+                : 'האדם סומן ישירות על המפה, ולכן התכונות מוערכות לפי המרחק מכל פינה. שש שאלות תצפית ייתנו פרופיל מדויק יותר.'}
+          </p>
+        </Explain>
+      </section>
 
       <div className="detail-grid">
         <section className="panel">

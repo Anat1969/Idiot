@@ -11,6 +11,9 @@ import { Me } from './pages/Me';
 import { Meet } from './pages/Meet';
 import { People } from './pages/People';
 import { Team } from './pages/Team';
+import { SharedMap } from './pages/SharedMap';
+import { Roles } from './pages/Roles';
+import { loadShared } from './lib/shared';
 
 const TITLES: Record<string, string> = {
   home: 'מוקף · אתה מוקף אידיוטים',
@@ -19,6 +22,8 @@ const TITLES: Record<string, string> = {
   people: 'אנשים · מוקף',
   meet: 'הכנה לשיחה · מוקף',
   team: 'צוות · מוקף',
+  map: 'המפה הכללית · מוקף',
+  roles: 'תפקידים · מוקף',
 };
 
 export function App() {
@@ -26,7 +31,8 @@ export function App() {
   const editing = useStore((s) => s.canEdit && s.editMode);
   useEffect(() => {
     loadLibrary();
-    const onFocus = () => document.visibilityState === 'visible' && loadLibrary();
+    loadShared();
+    const onFocus = () => document.visibilityState === 'visible' && (loadLibrary(), loadShared());
     document.addEventListener('visibilitychange', onFocus);
     return () => document.removeEventListener('visibilitychange', onFocus);
   }, []);
@@ -65,6 +71,8 @@ export function App() {
           {route.page === 'people' && <People id={route.id} />}
           {route.page === 'meet' && <Meet id={route.id} goal={route.goal} />}
           {route.page === 'team' && <Team id={route.id} />}
+          {route.page === 'map' && <SharedMap />}
+          {route.page === 'roles' && <Roles id={route.id} />}
         </motion.div>
       </main>
       <footer className="foot">

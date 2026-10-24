@@ -133,8 +133,8 @@ export function ColorMap({
             );
           })}
         </div>
-        <span className="axis-label al-top">מהיר · יוזם</span>
-        <span className="axis-label al-bottom">מתון · שוקל</span>
+        <span className="axis-label al-top">יוזם · פועל מיד</span>
+        <span className="axis-label al-bottom">שקול · בודק קודם</span>
         <span className="axis-label al-left">משימה</span>
         <span className="axis-label al-right">אנשים</span>
       </div>
@@ -144,7 +144,7 @@ export function ColorMap({
             <b>ציר אופקי:</b> משימה 100 עד אנשים 100
           </span>
           <span>
-            <b>ציר אנכי:</b> מתון 100 עד מהיר 100
+            <b>ציר אנכי:</b> שקול 100 עד יוזם 100
           </span>
           <span>
             <b>מרחק מהמרכז:</b> עוצמת הסגנון. במרכז מאוזן וצבע דהוי, בפינה מובהק וצבע מלא

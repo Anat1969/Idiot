@@ -14,7 +14,7 @@ export function Colors({ color }: { color?: Color }) {
       <header className="page-head">
         <span className="label">הספרייה</span>
         <h1>ארבעת הצבעים</h1>
-        <p className="lead">שני צירים: האם האדם ממוקד במשימה או באנשים, והאם הקצב שלו מהיר או מתון. אף צבע אינו טוב יותר. כל אחד צריך תרגום אחר.</p>
+        <p className="lead">שני צירים: האם האדם ממוקד במשימה או באנשים, והאם הוא פועל מיד או בודק קודם. אף צבע אינו טוב יותר, ולכל קצה יש חוזקה. כל אחד צריך תרגום אחר.</p>
       </header>
       <nav className="color-tabs" aria-label="צבעים">
         {COLORS.map((c, i) => (

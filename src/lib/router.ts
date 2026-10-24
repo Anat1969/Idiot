@@ -7,7 +7,9 @@ export type Route =
   | { page: 'me' }
   | { page: 'people'; id?: string }
   | { page: 'meet'; id?: string; goal?: GoalKey }
-  | { page: 'team'; id?: string };
+  | { page: 'team'; id?: string }
+  | { page: 'map' }
+  | { page: 'roles'; id?: string };
 
 const COLORS = ['red', 'yellow', 'green', 'blue'];
 const GOALS = ['persuade', 'ask', 'feedback', 'conflict', 'delegate'];
@@ -25,6 +27,10 @@ export function parse(hash: string): Route {
       return { page: 'meet', id: b || undefined, goal: GOALS.includes(c) ? (c as GoalKey) : undefined };
     case 'team':
       return { page: 'team', id: b || undefined };
+    case 'map':
+      return { page: 'map' };
+    case 'roles':
+      return { page: 'roles', id: b || undefined };
     default:
       return { page: 'home' };
   }
