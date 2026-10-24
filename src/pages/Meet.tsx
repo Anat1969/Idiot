@@ -5,6 +5,8 @@ import { colorAt, friction, frictionLabel } from '../lib/engine';
 import { toast } from '../lib/feedback';
 import { go } from '../lib/router';
 import { useStore } from '../lib/store';
+import { blend, coords, toneStyle } from '../lib/color';
+import { ColorMap } from '../components/ColorMap';
 import { copyText, describe } from '../lib/text';
 import type { GoalKey } from '../lib/types';
 
@@ -29,7 +31,8 @@ export function Meet({ id, goal }: { id?: string; goal?: GoalKey }) {
               key={p.id}
               role="radio"
               aria-checked={p.id === id}
-              className={`chip-btn tone-${colorAt(p)} ${p.id === id ? 'on' : ''}`}
+              className={`chip-btn ${p.id === id ? 'on' : ''}`}
+              style={toneStyle(p)}
               onClick={() => go(`/meet/${p.id}${goal ? `/${goal}` : ''}`, true)}
             >
               <i aria-hidden="true" />
@@ -71,6 +74,7 @@ function Brief({ personId, goal }: { personId: string; goal: GoalKey }) {
   const lib = useStore((s) => s.library);
   const person = useStore((s) => s.people.find((p) => p.id === personId))!;
   const reading = useStore((s) => s.readings[0]);
+  const myName = useStore((s) => s.myName) || 'אני';
   const { main, line } = describe(lib, person);
   const key = `${goal}-${main.color}`;
   const advice = lib.goals[key];
@@ -97,7 +101,7 @@ function Brief({ personId, goal }: { personId: string; goal: GoalKey }) {
     .join('\n');
 
   return (
-    <motion.article className={`brief tone-${main.color}`} initial={{ opacity: 0, rotateX: 14, y: 40 }} animate={{ opacity: 1, rotateX: 0, y: 0 }} transition={{ type: 'spring', stiffness: 160, damping: 20 }}>
+    <motion.article className="brief" style={toneStyle(person)} initial={{ opacity: 0, rotateX: 14, y: 40 }} animate={{ opacity: 1, rotateX: 0, y: 0 }} transition={{ type: 'spring', stiffness: 160, damping: 20 }}>
       <header className="brief-head">
         <div>
           <span className="label">
@@ -111,6 +115,42 @@ function Brief({ personId, goal }: { personId: string; goal: GoalKey }) {
           העתקת התדריך
         </button>
       </header>
+
+      <section className="duo" aria-label="שני המשתתפים בשיחה">
+        <div className="duo-people">
+          {reading ? (
+            <Orb name={myName} sub={describe(lib, reading).line} p={reading} />
+          ) : (
+            <a className="orb orb-empty" href="#/me">
+              <span className="orb-ball" aria-hidden="true" />
+              <b>{myName}</b>
+              <small>עוד לא אבחנת את עצמך</small>
+            </a>
+          )}
+          <div className="duo-bridge">
+            {reading ? (
+              <>
+                <span className="mono big">{friction(reading, person)}</span>
+                <span className="label">{frictionLabel(friction(reading, person))}</span>
+                <span className="bridge-line" style={{ background: `linear-gradient(270deg, ${blend(reading).c}, ${blend(person).c})` }} />
+                <small>מרחק על המפה, מתוך 100</small>
+              </>
+            ) : (
+              <span className="label">מול</span>
+            )}
+          </div>
+          <Orb name={person.name} sub={line} p={person} />
+        </div>
+        <ColorMap
+          size="sm"
+          legend={false}
+          dots={[
+            ...(reading ? [{ id: 'me', label: myName, kind: 'me' as const, x: reading.x, y: reading.y }] : []),
+            { id: person.id, label: person.name, kind: 'person' as const, x: person.x, y: person.y },
+          ]}
+          links={reading ? [{ from: 'me', to: person.id }] : []}
+        />
+      </section>
 
       <section className="brief-open">
         <span className="label">משפט פתיחה</span>
@@ -150,5 +190,17 @@ function Brief({ personId, goal }: { personId: string; goal: GoalKey }) {
         )}
       </div>
     </motion.article>
+  );
+}
+
+function Orb({ name, sub, p }: { name: string; sub: string; p: { x: number; y: number } }) {
+  const c = coords(p);
+  return (
+    <div className="orb" style={toneStyle(p)}>
+      <span className="orb-ball" aria-hidden="true" />
+      <b>{name}</b>
+      <small>{sub}</small>
+      <small className="mono">{c.i}</small>
+    </div>
   );
 }

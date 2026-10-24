@@ -95,11 +95,32 @@ ok(await page.getByText('פער מודעות עצמית').isVisible(), 'me: self
 await page.getByRole('button', { name: 'העתקת המדריך' }).click();
 await page.getByText('המדריך הועתק').waitFor();
 ok((await clip(page)).startsWith('המדריך לעבודה איתי'), 'me: copy "working with me" manual');
+ok(/משימה \d+ · מהיר \d+ · עוצמה \d+%/.test(await page.locator('.result .coords').innerText()), 'me: coordinates in map units');
+await page.getByLabel('השם שלי על המפה').fill('ענת');
+await page.getByRole('button', { name: 'להוסיף אותי למפה' }).click();
+await page.getByText('ענת נוסף למפה').waitFor();
+ok((await page.locator('.result .dot-me b').innerText()) === 'ענת', 'me: my name on my dot');
+ok((await page.locator('.map-legend').count()) === 1 && (await page.locator('.result .tick-label').count()) === 8, 'map: axis units and legend');
+ok((await page.locator('.result .grid .ring').count()) === 4, 'map: four intensity rings');
 await shot(page, '04-me-result.png');
 
 // ---------- אנשים ----------
 await page.locator('.topnav').getByRole('link', { name: 'אנשים' }).click();
-ok((await page.locator('.person-card').count()) === 5, 'people: five demo people');
+ok((await page.locator('.person-card').count()) === 6, 'people: me card + five demo people');
+ok((await page.locator('.me-card b').innerText()) === 'ענת', 'people: me card with my name');
+ok((await page.locator('.dot-me b').innerText()) === 'ענת', 'people: my name on the people map');
+const tones = await page.evaluate(() => [...document.querySelectorAll('.person-card')].map((e) => getComputedStyle(e).getPropertyValue('--c').trim()));
+ok(new Set(tones).size === tones.length, `people: every person has their own blended color (${tones.join(' | ')})`);
+const sat = await page.evaluate(() => {
+  // נועה (0.2, 0.35) קרובה למרכז: הצבע שלה דהוי יותר מזה של דנה (פינה אדומה)
+  const get = (n) => {
+    const card = [...document.querySelectorAll('.person-card')].find((e) => e.querySelector('b').textContent === n);
+    const [r, g, b] = getComputedStyle(card).getPropertyValue('--c').match(/\d+/g).map(Number);
+    return Math.max(r, g, b) - Math.min(r, g, b);
+  };
+  return { noa: get('נועה'), dana: get('דנה') };
+});
+ok(sat.noa < sat.dana, `color intensity follows distance from center (noa ${sat.noa} < dana ${sat.dana})`);
 await page.getByRole('link', { name: 'הוספת אדם' }).click();
 await page.getByRole('button', { name: 'שש שאלות תצפית' }).click();
 await page.getByText('חסר שם').waitFor();
@@ -116,6 +137,11 @@ await page.getByRole('heading', { name: 'רונית', exact: true }).waitFor();
 ok(page.url().includes('#/people/'), 'people: person page after quiz');
 ok((await page.locator('.result h1').innerText()) === 'רונית' && (await page.locator('.result .lead').innerText()).includes('כחול'), 'people: observation quiz places her in blue');
 ok((await page.locator('.panel.pair h4').innerText()).includes('תהליך'), 'people: red-blue pair advice for me and her');
+await page.getByRole('button', { name: 'עריכת שם ותפקיד' }).click();
+await page.locator('.form.details input').nth(1).fill('מנהלת רכש אצל הלקוח');
+await page.getByRole('button', { name: 'שמירת הפרטים' }).click();
+await page.getByText('הפרטים נשמרו').waitFor();
+ok((await page.locator('.result .label').first().innerText()) === 'מנהלת רכש אצל הלקוח', 'people: role edited after creation');
 await page.locator('.note textarea').fill('מעדיפה מייל מסודר');
 await page.locator('.note textarea').blur();
 await page.getByText('ההערה נשמרה').waitFor();
@@ -142,6 +168,9 @@ ok(page.url().endsWith('/feedback'), 'meet: goal in URL (copy link keeps state)'
 ok((await page.locator('.brief-open .quote').innerText()).length > 10, 'meet: opening line shown');
 ok((await page.locator('.brief .steps li').count()) === 4, 'meet: four steps');
 ok(await page.locator('.brief .panel.pair').isVisible(), 'meet: pair dynamic shown');
+ok((await page.locator('.duo .orb').count()) === 2, 'meet: both people shown as color orbs');
+ok((await page.locator('.duo .grid .link').count()) === 1, 'meet: line between the two on the map');
+ok(/^\d+$/.test(await page.locator('.duo-bridge .mono').innerText()), 'meet: distance number between them');
 await page.getByRole('button', { name: 'העתקת התדריך' }).click();
 await page.getByText('התדריך הועתק').waitFor();
 ok((await clip(page)).includes('תדריך לשיחה עם רונית · מטרה: לתת משוב'), 'meet: copy brief');
@@ -188,9 +217,10 @@ await page.getByRole('button', { name: 'שמירת הצוות' }).click();
 await page.getByText('צוות צריך לפחות שני אנשים').waitFor();
 ok(true, 'team: needs two members');
 await page.locator('.form .chip-btn', { hasText: 'אורי' }).click();
+await page.locator('.form .chip-btn.me-chip').click();
 await page.getByRole('button', { name: 'שמירת הצוות' }).click();
 await page.getByRole('heading', { name: 'צוות בדיקה' }).waitFor();
-ok(true, 'team: new team created');
+ok((await page.locator('.matrix tbody tr').count()) === 3 && (await page.locator('.team-top .dot-me b').innerText()) === 'ענת', 'team: new team with me in it');
 await page.getByRole('button', { name: 'מחיקת הצוות' }).click();
 await page.getByRole('alertdialog').getByRole('button', { name: 'מחיקה' }).click();
 await page.getByText('הצוות נמחק').waitFor();
@@ -205,16 +235,16 @@ ok(await page.getByRole('heading', { name: 'רונית', exact: true }).isVisibl
 await page.getByRole('button', { name: 'מחיקת האדם' }).click();
 await page.getByRole('alertdialog').getByRole('button', { name: 'מחיקה' }).click();
 await page.getByText('נמחק').first().waitFor();
-ok((await page.locator('.person-card').count()) === 5, 'people: person deleted');
+ok((await page.locator('.person-card').count()) === 6, 'people: person deleted');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'הורדת גיבוי' }).click()]);
 ok(dl.suggestedFilename().startsWith('idiot-backup-'), `people: backup download (${dl.suggestedFilename()})`);
 const backupPath = join(OUT, 'backup.json');
 await dl.saveAs(backupPath);
 await page.getByRole('button', { name: 'ניקוי אנשי הדוגמה' }).click();
-ok((await page.locator('.person-card').count()) === 0, 'people: clear demo');
+ok((await page.locator('.person-card').count()) === 1, 'people: clear demo (me stays)');
 await page.locator('input[type=file]').setInputFiles(backupPath);
 await page.getByText('הגיבוי נטען').waitFor();
-ok((await page.locator('.person-card').count()) === 5, 'people: restore backup');
+ok((await page.locator('.person-card').count()) === 6, 'people: restore backup');
 
 // ---------- עריכה עם מפתח ----------
 await page.goto(`${BASE}/?key=${TEST_KEY}#/colors/red`);
