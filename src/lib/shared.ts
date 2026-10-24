@@ -125,3 +125,18 @@ export async function createGroup(name: string, about: string): Promise<boolean>
   toast(exists ? `הצטרפת לקבוצה "${g}"` : `הקבוצה "${g}" נפתחה, והצטרפת אליה`);
   return true;
 }
+
+/** שיוך אדם לקבוצות (הוספה, הוצאה, העברה). פתוח לכולם, כמו פתיחת קבוצה */
+export async function setGroupsFor(id: string, groups: string[]): Promise<boolean> {
+  const clean = [...new Set(groups.map((g) => g.trim()).filter(Boolean))].slice(0, 10);
+  const prev = getState().shared;
+  setState({ shared: prev.map((r) => (r.id === id ? { ...r, groups: clean, group_name: clean[0] ?? '' } : r)) });
+  if (getState().myShared?.id === id) setState({ myGroups: clean });
+  const res = await supa.rpc('idiot_result_set_groups', { p_id: id, p_groups: clean });
+  if (res.error || res.data !== true) {
+    setState({ shared: prev });
+    toast('השינוי לא נשמר. נסו שוב', 'error');
+    return false;
+  }
+  return true;
+}

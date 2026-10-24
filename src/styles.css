@@ -561,3 +561,11 @@ input:not([type]), input[type='text'], textarea, .tag, .linkish { border-radius:
 .group-card .stack i { width: 22px; height: 22px; }
 .new-group h4 { margin: 4px 0 8px; }
 .new-group .row > input { flex: 1 1 200px; min-width: 0; }
+.members-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .members-cols { grid-template-columns: minmax(0, 1fr); } }
+.members ul { list-style: none; padding: 0 !important; margin: 0; display: grid; gap: 6px; }
+.members li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; background: #fff; box-shadow: inset -4px 0 0 var(--c); }
+.members .who { display: grid; flex: 1 1 140px; min-width: 0; line-height: 1.3; }
+.members .who small { font-size: 12px; font-weight: 300; color: var(--muted); }
+.members select, .group-cell select { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); background: #fff; border-radius: 0; max-width: 100%; }
+.group-cell { display: grid; gap: 4px; }

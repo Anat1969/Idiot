@@ -119,3 +119,15 @@ begin
 end; $$;
 revoke execute on function public.idiot_result_save(uuid, text, text, text, text[], real, real, jsonb, jsonb) from public;
 grant execute on function public.idiot_result_save(uuid, text, text, text, text[], real, real, jsonb, jsonb) to anon, authenticated;
+
+-- הוספה, הוצאה והעברה של אנשים בין קבוצות
+create or replace function public.idiot_result_set_groups(p_id uuid, p_groups text[])
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  if cardinality(coalesce(p_groups, '{}')) > 10 then return false; end if;
+  if exists (select 1 from unnest(coalesce(p_groups, '{}')) g where char_length(btrim(g)) not between 1 and 40) then return false; end if;
+  update public.idiot_results set groups = coalesce(p_groups, '{}'), group_name = coalesce(p_groups[1], ''), updated_at = now() where id = p_id;
+  return found;
+end; $$;
+revoke execute on function public.idiot_result_set_groups(uuid, text[]) from public;
+grant execute on function public.idiot_result_set_groups(uuid, text[]) to anon, authenticated;

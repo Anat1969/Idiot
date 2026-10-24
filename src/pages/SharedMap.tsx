@@ -7,11 +7,11 @@ import { blend, coords, toneStyle } from '../lib/color';
 import { averageTraits, fullTraits as toTraitsOrNull } from '../lib/compare';
 import { colorAt, intensity } from '../lib/engine';
 import { confirmAction, toast } from '../lib/feedback';
-import { createGroup, deleteShared, publishMe } from '../lib/shared';
+import { createGroup, deleteShared, publishMe, setGroupsFor } from '../lib/shared';
 import { go } from '../lib/router';
 import { groupsOf, joinGroup, leaveGroup, selectEditing, useStore } from '../lib/store';
 import { copyText, describe } from '../lib/text';
-import type { Color } from '../lib/types';
+import type { Color, SharedResult } from '../lib/types';
 
 const NONE = '__none__';
 
@@ -139,8 +139,14 @@ export function SharedMap({ group: filterParam }: { group?: string }) {
         ))}
       </div>
 
+      {filter && filter !== NONE && <GroupMembers group={filter} people={shared} names={names} />}
+
       {rows.length === 0 ? (
-        <p className="hint">עוד אין כאן אף אחד. שלחו קישור הזמנה, וכל מי שיעשה את האבחון יופיע על המפה.</p>
+        <p className="hint">
+          {filter && filter !== NONE
+            ? `בקבוצה "${filter}" עוד אין אנשים. הוסיפו אנשים מהרשימה למעלה, או שלחו קישור הזמנה.`
+            : 'עוד אין כאן אף אחד. שלחו קישור הזמנה, וכל מי שיעשה את האבחון יופיע על המפה.'}
+        </p>
       ) : (
         <>
           <section className="shared-top">
@@ -221,7 +227,9 @@ export function SharedMap({ group: filterParam }: { group?: string }) {
                           {r.role && <small className="role-sub">{r.role}</small>}
                           {r.id === myShared?.id && <span className="tag">אני</span>}
                         </td>
-                        <td>{groupsOf(r).join(', ') || '-'}</td>
+                        <td>
+                          <GroupCell r={r} names={names} current={filter && filter !== NONE ? filter : ''} />
+                        </td>
                         <td>{describe(lib, r).line}</td>
                         <td className="mono">
                           {c.x} · {c.y} · {c.i}
@@ -249,5 +257,108 @@ export function SharedMap({ group: filterParam }: { group?: string }) {
         </>
       )}
     </div>
+  );
+}
+
+/** תא הקבוצות בטבלה: הקבוצות של האדם, ותפריט להוספה או להעברה */
+function GroupCell({ r, names, current }: { r: SharedResult; names: string[]; current: string }) {
+  const mine = groupsOf(r);
+  const options = names.filter((g) => !mine.includes(g));
+  return (
+    <div className="group-cell">
+      <span>{mine.join(', ') || 'בלי קבוצה'}</span>
+      {options.length > 0 && (
+        <select
+          aria-label={current ? `העברת ${r.name} לקבוצה אחרת` : `הוספת ${r.name} לקבוצה`}
+          value=""
+          onChange={async (e) => {
+            const g = e.target.value;
+            if (!g) return;
+            const next = current ? [...mine.filter((x) => x !== current), g] : [...mine, g];
+            if (await setGroupsFor(r.id, next)) toast(current ? `${r.name} הועבר מ"${current}" ל"${g}"` : `${r.name} נוסף לקבוצה "${g}"`);
+          }}
+        >
+          <option value="">{current ? 'העברה לקבוצה...' : 'הוספה לקבוצה...'}</option>
+          {options.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
+/** בדף של קבוצה: מי בפנים, ומי אפשר להוסיף. כל אחד יכול להוסיף, להוציא ולהעביר */
+function GroupMembers({ group, people, names }: { group: string; people: SharedResult[]; names: string[] }) {
+  const inside = people.filter((r) => groupsOf(r).includes(group));
+  const outside = people.filter((r) => !groupsOf(r).includes(group));
+  const others = names.filter((g) => g !== group);
+  const set = async (r: SharedResult, next: string[], msg: string) => {
+    if (await setGroupsFor(r.id, next)) toast(msg);
+  };
+  return (
+    <section className="panel members">
+      <h3>מי בקבוצה "{group}"</h3>
+      <p className="muted">כאן מוסיפים אנשים מהמפה הכללית לקבוצה, מוציאים, או מעבירים לקבוצה אחרת. השינוי נשמר לכולם מיד.</p>
+      <div className="members-cols">
+        <div>
+          <h4>
+            בקבוצה <span className="mono">{inside.length}</span>
+          </h4>
+          {inside.length === 0 && <p className="muted">עוד אין אף אחד.</p>}
+          <ul>
+            {inside.map((r) => (
+              <li key={r.id} style={toneStyle(r)}>
+                <span className="swatch sm" aria-hidden="true" />
+                <span className="who">
+                  <b>{r.name}</b>
+                  {r.role && <small>{r.role}</small>}
+                </span>
+                <button className="btn ghost xs" onClick={() => set(r, groupsOf(r).filter((g) => g !== group), `${r.name} הוצא מהקבוצה "${group}"`)}>
+                  הוצאה מהקבוצה
+                </button>
+                {others.length > 0 && (
+                  <select
+                    aria-label={`העברת ${r.name} לקבוצה אחרת`}
+                    value=""
+                    onChange={(e) => e.target.value && set(r, [...groupsOf(r).filter((g) => g !== group && g !== e.target.value), e.target.value], `${r.name} הועבר ל"${e.target.value}"`)}
+                  >
+                    <option value="">העברה ל...</option>
+                    {others.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h4>
+            כל השאר במפה הכללית <span className="mono">{outside.length}</span>
+          </h4>
+          {outside.length === 0 && <p className="muted">כולם כבר בקבוצה.</p>}
+          <ul>
+            {outside.map((r) => (
+              <li key={r.id} style={toneStyle(r)}>
+                <span className="swatch sm" aria-hidden="true" />
+                <span className="who">
+                  <b>{r.name}</b>
+                  {r.role && <small>{r.role}</small>}
+                  {groupsOf(r).length > 0 && <small>בקבוצות: {groupsOf(r).join(', ')}</small>}
+                </span>
+                <button className="btn solid xs" onClick={() => set(r, [...groupsOf(r), group], `${r.name} נוסף לקבוצה "${group}"`)}>
+                  הוספה לקבוצה
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
   );
 }

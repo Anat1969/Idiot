@@ -53,6 +53,13 @@ export async function mockSupabase(ctx, db) {
         return route.fulfill({ status: 201, body: '' });
       }
     }
+    if (url.pathname === '/rest/v1/rpc/idiot_result_set_groups') {
+      const b = req.postDataJSON();
+      const row = db.idiot_results.find((r) => r.id === b.p_id);
+      if (!row || b.p_groups.length > 10) return json(route, false);
+      Object.assign(row, { groups: b.p_groups, group_name: b.p_groups[0] ?? '' });
+      return json(route, true);
+    }
     if (url.pathname === '/rest/v1/rpc/idiot_result_update' || url.pathname === '/rest/v1/rpc/idiot_result_save' || url.pathname === '/rest/v1/rpc/idiot_result_delete') {
       const b = req.postDataJSON();
       const { createHash } = await import('node:crypto');
