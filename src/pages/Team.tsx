@@ -7,7 +7,8 @@ import { colorAt, friction, frictionLabel } from '../lib/engine';
 import { uid } from '../lib/id';
 import { confirmAction, toast } from '../lib/feedback';
 import { go } from '../lib/router';
-import { deleteTeam, saveTeam, useStore } from '../lib/store';
+import { ME_ID, deleteTeam, mePerson, saveTeam, useStore } from '../lib/store';
+import { toneStyle } from '../lib/color';
 import { copyText } from '../lib/text';
 import type { Color, Person, Team as TeamT } from '../lib/types';
 
@@ -28,9 +29,18 @@ export function Team({ id }: { id?: string }) {
   return team ? <TeamPage team={team} key={team.id} /> : <TeamList />;
 }
 
+/** האנשים בצוות, כולל אותי אם צירפתי את עצמי */
+function useRoster() {
+  const people = useStore((s) => s.people);
+  const readings = useStore((s) => s.readings);
+  const myName = useStore((s) => s.myName);
+  const me = mePerson({ readings, myName });
+  return me ? [me, ...people] : people;
+}
+
 function TeamList() {
   const teams = useStore((s) => s.teams);
-  const people = useStore((s) => s.people);
+  const people = useRoster();
   return (
     <div className="page">
       <header className="page-head split">
@@ -55,7 +65,7 @@ function TeamList() {
                   <h2>{t.name}</h2>
                   <span className="stack" aria-hidden="true">
                     {members.map((m) => (
-                      <i key={m.id} className={`tone-${colorAt(m)}`} />
+                      <i key={m.id} style={toneStyle(m)} />
                     ))}
                   </span>
                   <small>{members.map((m) => m.name).join(', ') || 'אין חברים'}</small>
@@ -70,7 +80,7 @@ function TeamList() {
 }
 
 function TeamEditor({ team, onDone }: { team?: TeamT; onDone?: () => void }) {
-  const people = useStore((s) => s.people);
+  const people = useRoster();
   const [name, setName] = useState(team?.name ?? '');
   const [members, setMembers] = useState<string[]>(team?.members ?? []);
   const toggle = (id: string) => setMembers((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
@@ -101,7 +111,7 @@ function TeamEditor({ team, onDone }: { team?: TeamT; onDone?: () => void }) {
           <legend>חברים ({members.length})</legend>
           <div className="chips">
             {people.map((p) => (
-              <button type="button" key={p.id} className={`chip-btn tone-${colorAt(p)} ${members.includes(p.id) ? 'on' : ''}`} aria-pressed={members.includes(p.id)} onClick={() => toggle(p.id)}>
+              <button type="button" key={p.id} style={toneStyle(p)} className={`chip-btn ${p.id === ME_ID ? 'me-chip' : ''} ${members.includes(p.id) ? 'on' : ''}`} aria-pressed={members.includes(p.id)} onClick={() => toggle(p.id)}>
                 <i aria-hidden="true" />
                 {p.name}
               </button>
@@ -134,7 +144,7 @@ const ROLE: Record<Color, string> = { red: 'מכריע', yellow: 'מייצר ר�
 
 function TeamPage({ team }: { team: TeamT }) {
   const lib = useStore((s) => s.library);
-  const people = useStore((s) => s.people);
+  const people = useRoster();
   const [editing, setEditing] = useState(false);
   if (editing) return <TeamEditor team={team} onDone={() => setEditing(false)} />;
 
@@ -167,7 +177,7 @@ function TeamPage({ team }: { team: TeamT }) {
     ...pairs.slice(0, 3).map((p) => `- ${p.a.name} ו${p.b.name}: ${lib.pairs[`${colorAt(p.a)}-${colorAt(p.b)}`].title}`),
   ].join('\n');
 
-  const dots: Dot[] = members.map((m) => ({ id: m.id, label: m.name, kind: 'person', x: m.x, y: m.y, href: `#/people/${m.id}` }));
+  const dots: Dot[] = members.map((m) => ({ id: m.id, label: m.name, kind: m.id === ME_ID ? 'me' : 'person', x: m.x, y: m.y, href: m.id === ME_ID ? '#/me' : `#/people/${m.id}` }));
 
   return (
     <div className="page">
@@ -242,7 +252,7 @@ function TeamPage({ team }: { team: TeamT }) {
                   r.best && (
                     <li key={r.c} className={`tone-${r.c}`}>
                       <span className="chip">{ROLE[r.c]}</span>
-                      <a href={`#/people/${r.best.id}`}>{r.best.name}</a>
+                      <a href={r.best.id === ME_ID ? '#/me' : `#/people/${r.best.id}`}>{r.best.name}</a>
                       {count[r.c] === 0 && <small>אין {lib.profiles[r.c].name} מובהק. זה הכי קרוב.</small>}
                     </li>
                   )
@@ -262,7 +272,7 @@ function TeamPage({ team }: { team: TeamT }) {
                 <tr>
                   <th />
                   {members.map((m) => (
-                    <th key={m.id} scope="col" className={`tone-${colorAt(m)}`}>
+                    <th key={m.id} scope="col" style={toneStyle(m)}>
                       {m.name}
                     </th>
                   ))}
@@ -271,7 +281,7 @@ function TeamPage({ team }: { team: TeamT }) {
               <tbody>
                 {members.map((a) => (
                   <tr key={a.id}>
-                    <th scope="row" className={`tone-${colorAt(a)}`}>
+                    <th scope="row" style={toneStyle(a)}>
                       {a.name}
                     </th>
                     {members.map((b) => {

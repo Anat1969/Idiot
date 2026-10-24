@@ -11,10 +11,11 @@ export function Home() {
   const reading = useStore((s) => s.readings[0]);
   const people = useStore((s) => s.people);
   const teams = useStore((s) => s.teams);
+  const myName = useStore((s) => s.myName);
 
   const dots: Dot[] = [
     ...people.map((p) => ({ id: p.id, label: p.name, x: p.x, y: p.y, kind: 'person' as const, href: `#/people/${p.id}` })),
-    ...(reading ? [{ id: 'me', label: 'אני', x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
+    ...(reading ? [{ id: 'me', label: myName || 'אני', x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
   ];
 
   const routes = [

@@ -10,6 +10,7 @@ import { confirmAction, toast } from '../lib/feedback';
 import { go } from '../lib/router';
 import { clearDemo, deletePerson, exportData, importData, savePerson, useStore } from '../lib/store';
 import { describe } from '../lib/text';
+import { coords, toneStyle } from '../lib/color';
 import type { Person, Point } from '../lib/types';
 
 export function People({ id }: { id?: string }) {
@@ -33,10 +34,11 @@ function PeopleList() {
   const lib = useStore((s) => s.library);
   const people = useStore((s) => s.people);
   const reading = useStore((s) => s.readings[0]);
+  const myName = useStore((s) => s.myName);
   const file = useRef<HTMLInputElement>(null);
   const dots: Dot[] = [
     ...people.map((p) => ({ id: p.id, label: p.name, x: p.x, y: p.y, kind: 'person' as const, href: `#/people/${p.id}` })),
-    ...(reading ? [{ id: 'me', label: 'אני', x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
+    ...(reading ? [{ id: 'me', label: myName || 'אני', x: reading.x, y: reading.y, kind: 'me' as const, href: '#/me' }] : []),
   ];
 
   const download = () => {
@@ -64,6 +66,19 @@ function PeopleList() {
       <div className="people-layout">
         <ColorMap dots={dots} size="lg" />
         <div className="people-list">
+          {reading && (
+            <a className="person-card me-card" href="#/me" style={toneStyle(reading)}>
+              <span className="swatch" aria-hidden="true" />
+              <span className="person-main">
+                <b>{myName || 'אני'}</b>
+                <small>{myName ? 'אני' : 'הוסיפו את השם שלכם בדף האבחון'}</small>
+              </span>
+              <span className="person-side">
+                <span>{describe(lib, reading).main.name}</span>
+                <small>{coords(reading).i}</small>
+              </span>
+            </a>
+          )}
           {people.length === 0 && <p className="hint">עדיין אין אנשים. התחילו במישהו שקשה לכם לעבוד איתו.</p>}
           {people.map((p, i) => {
             const d = describe(lib, p);
@@ -71,7 +86,7 @@ function PeopleList() {
             return (
               <motion.div key={p.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}>
                 <Tilt max={5}>
-                  <a className={`person-card tone-${colorAt(p)}`} href={`#/people/${p.id}`}>
+                  <a className="person-card" style={toneStyle(p)} href={`#/people/${p.id}`}>
                     <span className="swatch" aria-hidden="true" />
                     <span className="person-main">
                       <b>{p.name}</b>
@@ -79,7 +94,7 @@ function PeopleList() {
                     </span>
                     <span className="person-side">
                       <span>{d.main.name}</span>
-                      {f !== null && <small>{frictionLabel(f)}</small>}
+                      <small>{f !== null ? `${frictionLabel(f)} · ${f}` : coords(p).i}</small>
                     </span>
                     {p.demo && <span className="tag">דוגמה</span>}
                   </a>
@@ -194,7 +209,11 @@ function AddPerson() {
 function PersonPage({ person }: { person: Person }) {
   const lib = useStore((s) => s.library);
   const reading = useStore((s) => s.readings[0]);
+  const myName = useStore((s) => s.myName);
   const [moving, setMoving] = useState(false);
+  const [details, setDetails] = useState(false);
+  const [name, setName] = useState(person.name);
+  const [role, setRole] = useState(person.role);
   const [requiz, setRequiz] = useState(false);
   const [note, setNote] = useState(person.note);
   const { main, line } = describe(lib, person);
@@ -222,24 +241,65 @@ function PersonPage({ person }: { person: Person }) {
 
   const dots: Dot[] = [
     { id: person.id, label: person.name, kind: 'person', x: person.x, y: person.y },
-    ...(reading ? [{ id: 'me', label: 'אני', kind: 'me' as const, x: reading.x, y: reading.y }] : []),
+    ...(reading ? [{ id: 'me', label: myName || 'אני', kind: 'me' as const, x: reading.x, y: reading.y }] : []),
   ];
+  const cc = coords(person);
 
   return (
     <div className="page">
-      <motion.section className={`result tone-${main.color}`} initial={{ opacity: 0, rotateX: 10, y: 24 }} animate={{ opacity: 1, rotateX: 0, y: 0 }}>
+      <motion.section className="result" style={toneStyle(person)} initial={{ opacity: 0, rotateX: 10, y: 24 }} animate={{ opacity: 1, rotateX: 0, y: 0 }}>
         <div className="result-text">
           <a className="back" href="#/people">
             כל האנשים
           </a>
-          <span className="label">{person.role || 'אדם'}</span>
-          <h1>{person.name}</h1>
+          {details ? (
+            <form
+              className="form details"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!name.trim()) return toast('חסר שם', 'error');
+                savePerson({ ...person, name: name.trim(), role: role.trim() });
+                setDetails(false);
+                toast('הפרטים נשמרו');
+              }}
+            >
+              <label>
+                <span>שם</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoFocus />
+              </label>
+              <label>
+                <span>תפקיד או קשר</span>
+                <input value={role} onChange={(e) => setRole(e.target.value)} maxLength={60} placeholder="למשל: מנהלת הפרויקט מצד הלקוח" />
+              </label>
+              <div className="row wrap">
+                <button className="btn solid sm" type="submit">
+                  שמירת הפרטים
+                </button>
+                <button className="btn ghost sm" type="button" onClick={() => (setName(person.name), setRole(person.role), setDetails(false))}>
+                  ביטול
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <span className="label">{person.role || 'בלי תפקיד'}</span>
+              <h1>{person.name}</h1>
+            </>
+          )}
           <p className="lead">{line}.</p>
+          <p className="coords mono">
+            {cc.x} · {cc.y} · {cc.i}
+          </p>
           <p>{main.communication}</p>
           <div className="row wrap">
             <a className="btn solid" href={`#/meet/${person.id}`}>
               הכנה לשיחה עם {person.name}
             </a>
+            {!details && (
+              <button className="btn ghost sm" onClick={() => setDetails(true)}>
+                עריכת שם ותפקיד
+              </button>
+            )}
             <button className="btn ghost sm" onClick={() => setRequiz(true)}>
               הערכה מחדש
             </button>

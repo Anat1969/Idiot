@@ -5,7 +5,8 @@ import { Quiz } from '../components/Quiz';
 import { COLORS, selfQuestions } from '../data/starter';
 import { colorAt, gap, gapText, score } from '../lib/engine';
 import { toast } from '../lib/feedback';
-import { addReading, useStore } from '../lib/store';
+import { addReading, setMyName, useStore } from '../lib/store';
+import { coords, toneStyle } from '../lib/color';
 import { copyText, describe } from '../lib/text';
 import type { Point, Reading } from '../lib/types';
 
@@ -74,13 +75,16 @@ export function Me() {
 
 function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => void }) {
   const lib = useStore((s) => s.library);
+  const myName = useStore((s) => s.myName);
+  const [name, setName] = useState(myName);
   const r = readings[0];
   if (!r) return null;
+  const cc = coords(r);
   const { main, sec, line } = describe(lib, r);
   const g = r.guess ? gap(r.guess, r) : null;
   const dots: Dot[] = [
     ...(r.guess ? [{ id: 'g', label: 'הניחוש', kind: 'guess' as const, ...r.guess }] : []),
-    { id: 'me', label: 'אני', kind: 'me', x: r.x, y: r.y },
+    { id: 'me', label: myName || 'אני', kind: 'me', x: r.x, y: r.y },
   ];
 
   const manual = [
@@ -98,7 +102,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
 
   return (
     <div className="page">
-      <motion.section className={`result tone-${main.color}`} initial={{ opacity: 0, rotateX: 12, y: 30 }} animate={{ opacity: 1, rotateX: 0, y: 0 }}>
+      <motion.section className="result" style={toneStyle(r)} initial={{ opacity: 0, rotateX: 12, y: 30 }} animate={{ opacity: 1, rotateX: 0, y: 0 }}>
         <div className="result-text">
           <span className="label">התוצאה שלי</span>
           <h1>
@@ -106,7 +110,26 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
             <small> · {main.title}</small>
           </h1>
           <p className="lead">{line}.</p>
+          <p className="coords mono">
+            {cc.x} · {cc.y} · {cc.i}
+          </p>
           <p>{main.essence}</p>
+          <form
+            className="name-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setMyName(name);
+              toast(name.trim() ? `${name.trim()} נוסף למפה` : 'השם הוסר מהמפה');
+            }}
+          >
+            <label htmlFor="my-name">השם שלי על המפה</label>
+            <div className="row">
+              <input id="my-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: ענת" maxLength={40} />
+              <button className="btn solid sm" type="submit">
+                {myName ? 'עדכון' : 'להוסיף אותי למפה'}
+              </button>
+            </div>
+          </form>
           <div className="mix" aria-label="חלוקת הצבעים בתשובות">
             {COLORS.map((c) => (
               <div key={c} className={`mix-row tone-${c}`}>
@@ -182,7 +205,7 @@ function Result({ readings, onAgain }: { readings: Reading[]; onAgain: () => voi
           <h3>אבחונים קודמים</h3>
           <ol>
             {readings.map((x) => (
-              <li key={x.at} className={`tone-${colorAt(x)}`}>
+              <li key={x.at} style={toneStyle(x)}>
                 <span className="chip">{lib.profiles[colorAt(x)].name}</span>
                 <span>{describe(lib, x).line}</span>
                 <span className="mono">{new Date(x.at).toLocaleDateString('he-IL')}</span>

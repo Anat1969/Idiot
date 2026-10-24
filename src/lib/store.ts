@@ -13,6 +13,8 @@ type State = {
   editMode: boolean;
   /** מכאן והלאה נשאר במכשיר בלבד: הערכות של אנשים הן מידע אישי */
   readings: Reading[];
+  /** השם שלי, כפי שהוא מופיע על המפה ובצוותים */
+  myName: string;
   people: Person[];
   teams: Team[];
 };
@@ -21,6 +23,7 @@ const KEYS: Partial<Record<keyof State, string>> = {
   library: 'idiot.library',
   editMode: 'idiot.editMode',
   readings: 'idiot.readings',
+  myName: 'idiot.myName',
   people: 'idiot.people',
   teams: 'idiot.teams',
 };
@@ -49,6 +52,7 @@ let state: State = {
   canEdit: false,
   editMode: read(KEYS.editMode, false),
   readings: read(KEYS.readings, []),
+  myName: read(KEYS.myName, ''),
   people: seed ? seed.people : read(KEYS.people, []),
   teams: seed ? seed.teams : read(KEYS.teams, []),
 };
@@ -88,6 +92,19 @@ export function useStore<T>(select: (s: State) => T): T {
 
 export const me = () => state.readings[0] ?? null;
 
+/** המזהה שלי בצוות. אני לא ברשימת האנשים, אבל אפשר לצרף אותי לצוות */
+export const ME_ID = 'me';
+
+/** אני כאדם על המפה, לפי האבחון האחרון */
+export function mePerson(s: Pick<State, 'readings' | 'myName'> = state): Person | null {
+  const r = s.readings[0];
+  return r ? { id: ME_ID, name: s.myName || 'אני', role: 'אני', note: '', x: r.x, y: r.y, at: r.at } : null;
+}
+
+export function setMyName(name: string) {
+  setState({ myName: name.trim().slice(0, 40) });
+}
+
 export function addReading(r: Reading) {
   setState({ readings: [r, ...state.readings].slice(0, 30) });
 }
@@ -121,14 +138,14 @@ export function deleteTeam(id: string) {
 
 /** גיבוי של כל המידע האישי לקובץ, ושחזור ממנו */
 export function exportData() {
-  return JSON.stringify({ app: 'idiot', version: 1, readings: state.readings, people: state.people, teams: state.teams }, null, 2);
+  return JSON.stringify({ app: 'idiot', version: 1, myName: state.myName, readings: state.readings, people: state.people, teams: state.teams }, null, 2);
 }
 
 export function importData(text: string): boolean {
   try {
     const d = JSON.parse(text);
     if (d.app !== 'idiot' || !Array.isArray(d.people)) return false;
-    setState({ readings: d.readings ?? [], people: d.people, teams: d.teams ?? [] });
+    setState({ readings: d.readings ?? [], myName: d.myName ?? state.myName, people: d.people, teams: d.teams ?? [] });
     return true;
   } catch {
     return false;
