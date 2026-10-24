@@ -61,12 +61,12 @@ ok(db.requests.some((r) => r.path.startsWith('/rest/v1/idiot_library')), `librar
 await shot(page, '01-home.png');
 
 ok((await page.locator('.topbar').getByText('העתקת קישור').count()) === 0, 'top bar: extra buttons hidden behind A&I');
-await page.getByRole('button', { name: /A&I/ }).click();
-ok((await page.getByRole('link', { name: 'שיחת הפיתוח' }).getAttribute('href')).includes('claude.ai/code/session_'), 'A&I: dev chat link');
-ok((await page.getByRole('link', { name: 'פרויקט המחקר' }).getAttribute('href')).includes('claude.ai/chat/'), 'A&I: research link');
-ok((await page.locator('#studio-panel textarea, #studio-panel').getByText('הפעלת מצב עריכה').count()) === 0, 'A&I: no edit toggle without key');
+await page.locator('ai-menu .logo').click();
+ok((await page.getByRole('menuitem', { name: 'שיחת הפיתוח' }).getAttribute('href')).includes('claude.ai/code/session_'), 'A&I: dev chat link');
+ok((await page.getByRole('menuitem', { name: 'פרויקט המחקר' }).getAttribute('href')).includes('claude.ai/chat/'), 'A&I: research link');
+ok((await page.getByRole('menuitem', { name: 'הפעלת מצב עריכה' }).count()) === 0, 'A&I: no edit toggle without key');
 await shot(page, '02-studio.png');
-await page.getByRole('button', { name: 'העתקת קישור' }).click();
+await page.getByRole('menuitem', { name: 'העתקת קישור' }).click();
 await page.getByText('הקישור הועתק').waitFor();
 ok((await clip(page)).startsWith(BASE), 'copy link copies current URL');
 
@@ -329,8 +329,8 @@ ok((await page.locator('.near li').first().innerText()).includes('נתן'), 'me:
 await page.goto(`${BASE}/?key=${TEST_KEY}#/colors/red`);
 await page.locator('.detail-head h2').waitFor();
 ok(!page.url().includes('key='), 'edit: key removed from URL');
-await page.getByRole('button', { name: /A&I/ }).click();
-await page.getByRole('button', { name: 'הפעלת מצב עריכה' }).click();
+await page.locator('ai-menu .logo').click();
+await page.getByRole('menuitem', { name: 'הפעלת מצב עריכה' }).click();
 await page.locator('.edit-strip').waitFor();
 ok((await page.locator('textarea.editable').count()) > 10, 'edit: library texts become fields');
 await shot(page, '08-edit.png');
@@ -346,14 +346,14 @@ await traits.blur();
 await page.waitForTimeout(400);
 const lastPost = db.requests.filter((r) => r.method === 'POST').pop();
 ok(JSON.stringify(JSON.parse(lastPost.body).data.traits) === JSON.stringify(['תכונה א', 'תכונה ב']), 'edit: list field saved as lines');
-await page.getByRole('button', { name: /A&I/ }).click();
-await page.getByRole('button', { name: /מצב עריכה פעיל/ }).click();
+await page.locator('ai-menu .logo').click();
+await page.getByRole('menuitem', { name: /מצב עריכה פעיל/ }).click();
 ok((await page.locator('textarea.editable').count()) === 0, 'edit: turning off hides fields');
 await page.reload();
 await page.locator('.detail-head h2').waitFor();
 ok((await page.locator('.detail-head p').innerText()).includes('בודק שינוי'), 'edit: change persists from Supabase after reload');
-await page.getByRole('button', { name: /A&I/ }).click();
-await page.getByRole('button', { name: 'הפעלת מצב עריכה' }).click();
+await page.locator('ai-menu .logo').click();
+await page.getByRole('menuitem', { name: 'הפעלת מצב עריכה' }).click();
 await page.locator('.topnav').getByRole('link', { name: 'המפה הכללית' }).click();
 await page.locator('.results tr', { hasText: 'נתן' }).getByRole('button', { name: 'מחיקה' }).click();
 await page.getByRole('alertdialog').getByRole('button', { name: 'מחיקה' }).click();

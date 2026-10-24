@@ -42,3 +42,6 @@
 - מלכודות מ-Faces שתקפות גם כאן: בלי AnimatePresence סביב דפים; `.btn.menu-toggle`; `overflow-x: clip` ב-`.main`; בדיקת התקנה רק ב-launchPersistentContext; serviceWorkers: 'block' בבדיקות עם מוק; executablePath '/opt/pw-browsers/chromium'.
 - Supabase: apply_migration מחכה לאישור ידני שפג אחרי דקה. execute_sql עובד ל-DDL בלי אישור, אבל פקודה עם delete או בדיקת RLS בטרנזקציה עלולה לבקש אישור. הטבלאות נוצרו כך ב-24.10.2026, והסכמה המלאה ב-supabase/schema.sql.
 - הסביבה לא מגיעה ל-supabase.co: בדיקות דרך tests/supa-mock.mjs, שקורא את supabase/seed.sql.
+
+## A&I logo button
+The top bar holds only the app name (links home), content navigation, and ONE logo button "אד' ענת שטיבלמן A&I" (`<ai-menu>` from https://appofapp-gh.vercel.app/ai-menu.js). Every editing and development action (העתקת קישור, שיחת הפיתוח, פרויקט המחקר, התקנת האפליקציה, edit mode, add, delete) lives only inside it, never as loose buttons. Standard: https://github.com/Anat1969/AppOfApp-GH/blob/main/docs/ai-menu-standard.md

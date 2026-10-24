@@ -17,6 +17,8 @@ export function createDb() {
 const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
 export async function mockSupabase(ctx, db) {
+  // ai-menu.js: AI_MENU_JS points to a local copy when the network is closed
+  if (process.env.AI_MENU_JS) await ctx.route('https://appofapp-gh.vercel.app/ai-menu.js', (r) => r.fulfill({ path: process.env.AI_MENU_JS, contentType: 'application/javascript' }));
   await ctx.route('https://ktqmwpbzcnzkhjskqisy.supabase.co/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
