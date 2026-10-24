@@ -1,6 +1,7 @@
-import type { Color, Point, Question, Reading } from './types';
+import { TRAITS, TRAIT_KEYS } from '../data/traits';
+import type { Color, Point, Question, Reading, Role, Trait, Traits } from './types';
 
-/** פינת כל צבע במפה: אדום משימה ומהיר, צהוב אנשים ומהיר, ירוק אנשים ומתון, כחול משימה ומתון */
+/** פינת כל צבע במפה: אדום משימה ויוזם, צהוב אנשים ויוזם, ירוק אנשים ושקול, כחול משימה ושקול */
 export const CORNER: Record<Color, Point> = {
   red: { x: -1, y: 1 },
   yellow: { x: 1, y: 1 },
@@ -27,14 +28,21 @@ export const intensity = (p: Point) => Math.min(1, Math.hypot(p.x, p.y) / Math.S
 
 export function score(answers: Record<string, Color>, questions: Question[]): Omit<Reading, 'at'> {
   const mix: Record<Color, number> = { red: 0, yellow: 0, green: 0, blue: 0 };
+  const chosen = zeroTraits();
+  const offered = zeroTraits();
   let n = 0;
   for (const q of questions) {
+    q.options.forEach((o) => offered[o.trait]++);
     const c = answers[q.id];
-    if (!c) continue;
+    const opt = q.options.find((o) => o.color === c);
+    if (!opt) continue;
     mix[c]++;
+    chosen[opt.trait]++;
     n++;
   }
-  if (!n) return { x: 0, y: 0, mix };
+  const traits = zeroTraits();
+  TRAIT_KEYS.forEach((t) => (traits[t] = offered[t] ? round(chosen[t] / offered[t]) : 0));
+  if (!n) return { x: 0, y: 0, mix, traits };
   let x = 0;
   let y = 0;
   (Object.keys(mix) as Color[]).forEach((c) => {
@@ -42,8 +50,82 @@ export function score(answers: Record<string, Color>, questions: Question[]): Om
     x += CORNER[c].x * mix[c];
     y += CORNER[c].y * mix[c];
   });
-  return { x: round(x), y: round(y), mix };
+  return { x: round(x), y: round(y), mix, traits };
 }
+
+export const zeroTraits = (): Traits => Object.fromEntries(TRAIT_KEYS.map((t) => [t, 0])) as Traits;
+
+/** כל פרופיל מנורמל לסכום 2, כמו בשאלון: בכל שאלה נבחרת אחת מתוך ארבע תכונות שמוצעות, וכל תכונה מוצעת בחצי מהשאלות */
+function normalize(t: Partial<Traits>): Traits {
+  const out = zeroTraits();
+  const sum = TRAIT_KEYS.reduce((s, k) => s + (t[k] ?? 0), 0) || 1;
+  TRAIT_KEYS.forEach((k) => (out[k] = round(((t[k] ?? 0) / sum) * 2)));
+  return out;
+}
+
+/** הערכת תכונות ממיקום בלבד (למי שסומן על המפה בלי שאלון) */
+export function traitsFromPoint(p: Point): Traits {
+  const t: Partial<Traits> = {};
+  TRAITS.forEach(({ key, color }) => (t[key] = Math.max(0.02, 1 - Math.hypot(p.x - CORNER[color].x, p.y - CORNER[color].y) / 2.83) ** 2));
+  return normalize(t);
+}
+
+/** מיקום על המפה מתוך פרופיל תכונות */
+export function pointFromTraits(t: Traits): Point {
+  let x = 0;
+  let y = 0;
+  let sum = 0;
+  TRAITS.forEach(({ key, color }) => {
+    x += CORNER[color].x * t[key];
+    y += CORNER[color].y * t[key];
+    sum += t[key];
+  });
+  return sum ? { x: round(x / sum), y: round(y / sum) } : { x: 0, y: 0 };
+}
+
+const ADJ: Record<Color, Color[]> = { red: ['yellow', 'blue'], yellow: ['red', 'green'], green: ['yellow', 'blue'], blue: ['red', 'green'] };
+
+/** הפרופיל הטיפוסי של כל צבע: שתי התכונות שלו גבוהות, השכנים בינוני, הצבע הנגדי נמוך */
+export function modelTraits(c: Color): Traits {
+  const t: Partial<Traits> = {};
+  TRAITS.forEach(({ key, color }) => (t[key] = color === c ? 0.6 : ADJ[c].includes(color) ? 0.15 : 0.1));
+  return normalize(t);
+}
+
+/** דמיון בין שני פרופילים, 0 עד 100 (קוסינוס בין הווקטורים) */
+export function similarity(a: Traits, b: Traits) {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  TRAIT_KEYS.forEach((k) => {
+    dot += a[k] * b[k];
+    na += a[k] ** 2;
+    nb += b[k] ** 2;
+  });
+  return na && nb ? Math.round((dot / Math.sqrt(na * nb)) * 100) : 0;
+}
+
+/** הפרופיל של הארכיטיפ של תפקיד: התכונות שהתפקיד דורש */
+export const roleTraits = (role: Role) => normalize(role.needs);
+
+/**
+ * התאמה לתפקיד, 0 עד 100: ממוצע משוקלל של התכונות שהתפקיד דורש,
+ * ביחס לפרופיל האידיאלי של התפקיד. 100 = הפרופיל זהה לדרישות
+ */
+export function fit(t: Traits, role: Role) {
+  const ideal = roleTraits(role);
+  let got = 0;
+  let max = 0;
+  (Object.keys(role.needs) as Trait[]).forEach((k) => {
+    const w = role.needs[k] ?? 0;
+    got += w * Math.min(t[k], ideal[k]);
+    max += w * ideal[k];
+  });
+  return max ? Math.round((got / max) * 100) : 0;
+}
+
+/** התכונות מהחזקה לחלשה */
+export const ranked = (t: Traits) => [...TRAIT_KEYS].sort((a, b) => t[b] - t[a]);
 
 const round = (v: number) => Math.round(v * 1000) / 1000;
 

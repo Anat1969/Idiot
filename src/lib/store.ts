@@ -1,7 +1,9 @@
 import { useSyncExternalStore } from 'react';
-import { demoPeople, goals, pairs, profiles } from '../data/starter';
+import { goals, pairs, profiles } from '../data/starter';
+import { archetypes, roles } from '../data/traits';
+import { pointFromTraits, roleTraits } from './engine';
 import { uid } from './id';
-import type { Library, Person, Reading, Team } from './types';
+import type { Library, Person, Reading, SharedResult, Team } from './types';
 
 export type SyncStatus = 'loading' | 'ready' | 'offline';
 
@@ -17,6 +19,17 @@ type State = {
   myName: string;
   people: Person[];
   teams: Team[];
+  /** המפה הכללית: כל מי שאבחן את עצמו ושמר, מכל מכשיר */
+  shared: SharedResult[];
+  sharedSync: SyncStatus;
+  /** הקבוצה שאליה הוזמנתי (?g= בקישור), למשל "משפחה" */
+  group: string;
+  /** התוצאה שלי במפה הכללית: המזהה, והמפתח שמאפשר לעדכן אותה רק מהמכשיר הזה */
+  myShared: { id: string; token: string } | null;
+  /** יש שינוי שעוד לא הגיע למפה הכללית (למשל כשאין חיבור) */
+  publishPending: boolean;
+  /** ביקשתי להסיר את עצמי מהמפה הכללית: לא שולחים עד שאוסיף שוב */
+  optOut: boolean;
 };
 
 const KEYS: Partial<Record<keyof State, string>> = {
@@ -26,6 +39,11 @@ const KEYS: Partial<Record<keyof State, string>> = {
   myName: 'idiot.myName',
   people: 'idiot.people',
   teams: 'idiot.teams',
+  shared: 'idiot.shared',
+  group: 'idiot.group',
+  myShared: 'idiot.myShared',
+  publishPending: 'idiot.publishPending',
+  optOut: 'idiot.optOut',
 };
 
 function read<T>(key: string | undefined, fallback: T): T {
@@ -38,23 +56,50 @@ function read<T>(key: string | undefined, fallback: T): T {
   }
 }
 
+/** ארכיטיפים של תפקידים, כדי לראות את הקשר בין תפקיד לתכונות */
 function seedPeople(): { people: Person[]; teams: Team[] } {
-  const people = demoPeople.map((d, i) => ({ ...d, id: `demo-${i + 1}`, note: '', demo: true, at: Date.now() }));
-  return { people, teams: [{ id: 'demo-team', name: 'צוות הפרויקט (דוגמה)', members: people.map((p) => p.id), demo: true }] };
+  const people: Person[] = archetypes.map((a) => {
+    const role = roles[a.roleId];
+    const traits = roleTraits(role);
+    return { ...pointFromTraits(traits), id: `arch-${a.roleId}`, name: a.name, role: role.name, roleId: a.roleId, traits, note: '', demo: true, at: Date.now() };
+  });
+  return { people, teams: [{ id: 'demo-team', name: 'צוות פרויקט (ארכיטיפים)', members: people.map((p) => p.id), demo: true }] };
 }
 
-const firstVisit = read<Person[] | null>(KEYS.people, null) === null;
-const seed = firstVisit ? seedPeople() : null;
+function groupFromUrl(): string | null {
+  try {
+    const url = new URL(location.href);
+    const g = url.searchParams.get('g');
+    if (g === null) return null;
+    url.searchParams.delete('g');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    return g.trim().slice(0, 40);
+  } catch {
+    return null;
+  }
+}
+
+const stored = read<Person[] | null>(KEYS.people, null);
+// אנשי הדוגמה הישנים (בלי תפקיד) מוחלפים בארכיטיפים
+const oldDemo = !!stored && stored.some((p) => p.demo && !p.roleId);
+const seed = stored === null || oldDemo ? seedPeople() : null;
+const kept = oldDemo ? stored!.filter((p) => !p.demo) : null;
 
 let state: State = {
-  library: { profiles, pairs, goals, ...read<Partial<Library>>(KEYS.library, {}) },
+  library: { profiles, pairs, goals, roles, ...read<Partial<Library>>(KEYS.library, {}) },
   sync: 'loading',
   canEdit: false,
   editMode: read(KEYS.editMode, false),
   readings: read(KEYS.readings, []),
   myName: read(KEYS.myName, ''),
-  people: seed ? seed.people : read(KEYS.people, []),
-  teams: seed ? seed.teams : read(KEYS.teams, []),
+  people: seed ? [...(kept ?? []), ...seed.people] : (stored ?? []),
+  teams: seed ? [...(oldDemo ? read<Team[]>(KEYS.teams, []).filter((t) => !t.demo) : []), ...seed.teams] : read(KEYS.teams, []),
+  shared: read(KEYS.shared, []),
+  sharedSync: 'loading',
+  group: groupFromUrl() ?? read(KEYS.group, ''),
+  myShared: read(KEYS.myShared, null),
+  publishPending: read(KEYS.publishPending, false),
+  optOut: read(KEYS.optOut, false),
 };
 
 const listeners = new Set<() => void>();
@@ -74,6 +119,7 @@ export function setState(patch: Partial<State>) {
 }
 
 if (seed) setState({ people: state.people, teams: state.teams });
+setState({ group: state.group });
 
 export const getState = () => state;
 
@@ -102,11 +148,11 @@ export function mePerson(s: Pick<State, 'readings' | 'myName'> = state): Person 
 }
 
 export function setMyName(name: string) {
-  setState({ myName: name.trim().slice(0, 40) });
+  setState({ myName: name.trim().slice(0, 40), publishPending: true, optOut: false });
 }
 
 export function addReading(r: Reading) {
-  setState({ readings: [r, ...state.readings].slice(0, 30) });
+  setState({ readings: [r, ...state.readings].slice(0, 30), publishPending: true });
 }
 
 export function savePerson(p: Omit<Person, 'id' | 'at'> & { id?: string }): Person {

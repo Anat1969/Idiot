@@ -11,7 +11,7 @@ export function createDb() {
     data: JSON.parse(m[3].replace(/''/g, "'")),
     sort: +m[4],
   }));
-  return { idiot_library: rows, requests: [], offline: false };
+  return { idiot_library: rows, idiot_results: [], tokens: new Map(), requests: [], offline: false };
 }
 
 const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -25,6 +25,32 @@ export async function mockSupabase(ctx, db) {
     db.requests.push({ method, path: url.pathname + url.search, body: req.postData() });
     if (db.offline) return route.fulfill({ status: 503, body: 'down' });
     if (url.pathname === '/rest/v1/rpc/idiot_can_edit') return json(route, isEditor);
+    if (url.pathname === '/rest/v1/idiot_results') {
+      if (method === 'GET') return json(route, db.idiot_results);
+      if (method === 'POST') {
+        const body = req.postDataJSON();
+        const row = { ...body, id: `r${db.idiot_results.length + 1}-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        db.tokens.set(row.id, body.token_hash);
+        delete row.token_hash;
+        db.idiot_results.push(row);
+        return json(route, { id: row.id }, 201);
+      }
+      if (method === 'DELETE') {
+        if (!isEditor) return json(route, [], 200);
+        const id = url.searchParams.get('id')?.replace(/^eq\./, '');
+        db.idiot_results = db.idiot_results.filter((r) => r.id !== id);
+        return route.fulfill({ status: 204, body: '' });
+      }
+    }
+    if (url.pathname === '/rest/v1/rpc/idiot_result_update' || url.pathname === '/rest/v1/rpc/idiot_result_delete') {
+      const b = req.postDataJSON();
+      const { createHash } = await import('node:crypto');
+      const ok = db.tokens.get(b.p_id) === createHash('sha256').update(b.p_token).digest('hex');
+      if (!ok) return json(route, false);
+      if (url.pathname.endsWith('delete')) db.idiot_results = db.idiot_results.filter((r) => r.id !== b.p_id);
+      else Object.assign(db.idiot_results.find((r) => r.id === b.p_id), { name: b.p_name, group_name: b.p_group, x: b.p_x, y: b.p_y, mix: b.p_mix, traits: b.p_traits, updated_at: new Date().toISOString() });
+      return json(route, true);
+    }
     if (url.pathname === '/rest/v1/idiot_library') {
       if (method === 'GET') return json(route, db.idiot_library);
       if (!isEditor) return json(route, { message: 'new row violates row-level security policy' }, 403);

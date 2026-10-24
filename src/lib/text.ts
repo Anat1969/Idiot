@@ -5,7 +5,7 @@ export function strength(p: Point) {
   const v = intensity(p);
   if (v > 0.7) return 'מובהק';
   if (v > 0.4) return 'ברור';
-  if (v > 0.18) return 'מתון';
+  if (v > 0.18) return 'בינוני';
   return 'מאוזן';
 }
 

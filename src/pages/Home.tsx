@@ -12,6 +12,7 @@ export function Home() {
   const people = useStore((s) => s.people);
   const teams = useStore((s) => s.teams);
   const myName = useStore((s) => s.myName);
+  const shared = useStore((s) => s.shared);
 
   const dots: Dot[] = [
     ...people.map((p) => ({ id: p.id, label: p.name, x: p.x, y: p.y, kind: 'person' as const, href: `#/people/${p.id}` })),
@@ -23,12 +24,14 @@ export function Home() {
       href: '#/me',
       tag: '01',
       title: 'מי אני',
-      text: reading ? describe(lib, reading).line : 'ניחוש, 12 שאלות, ופער בין מה שחשבת למה שעולה מהתשובות.',
+      text: reading ? describe(lib, reading).line : 'ניחוש, 16 שאלות, פרופיל של שמונה תכונות, והשוואה לעצמך, למודלים ולאחרים.',
       color: reading ? colorAt(reading) : null,
     },
     { href: '#/people', tag: '02', title: 'האנשים סביבי', text: `${people.length === 1 ? 'אדם אחד' : `${people.length} אנשים`} על המפה. שש שאלות תצפית לכל אחד.`, color: null },
     { href: '#/meet', tag: '03', title: 'הכנה לשיחה', text: 'בוחרים אדם ומטרה, ומקבלים משפט פתיחה, מהלך ומה לא לעשות.', color: null },
     { href: '#/team', tag: '04', title: 'צוות', text: `${teams.length === 1 ? 'צוות אחד' : `${teams.length} צוותים`}. איזון, חיכוכים, ומי ממלא איזה תפקיד.`, color: null },
+    { href: '#/map', tag: '05', title: 'המפה הכללית', text: `${shared.length} אנשים אבחנו את עצמם ושמרו. מכל מכשיר, על מפה אחת.`, color: null },
+    { href: '#/roles', tag: '06', title: 'תפקידים', text: 'מה כל תפקיד דורש, ומי מתאים לו לפי התכונות.', color: null },
   ];
 
   return (
@@ -75,7 +78,7 @@ export function Home() {
           <span className="label">המפה שלך</span>
           <h2>מי נמצא איפה</h2>
           <p className="muted">
-            הציר האופקי: משימה מול אנשים. הציר האנכי: קצב מהיר מול מתון. כל רבע הוא צבע. לחיצה על נקודה פותחת את האדם.
+            הציר האופקי: משימה מול אנשים. הציר האנכי: יוזם ופועל מיד, מול שקול ובודק קודם. כל רבע הוא צבע. לחיצה על נקודה פותחת את האדם.
           </p>
           {!reading && (
             <a className="btn ghost sm" href="#/me">

@@ -41,7 +41,7 @@ export function coords(p: Point) {
   const i = Math.round(intensity(p) * 100);
   return {
     x: `${x < 0 ? 'משימה' : x > 0 ? 'אנשים' : 'מאוזן'} ${Math.abs(x)}`,
-    y: `${y > 0 ? 'מהיר' : y < 0 ? 'מתון' : 'מאוזן'} ${Math.abs(y)}`,
+    y: `${y > 0 ? 'יוזם' : y < 0 ? 'שקול' : 'מאוזן'} ${Math.abs(y)}`,
     i: `עוצמה ${i}%`,
   };
 }
