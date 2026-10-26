@@ -11,7 +11,7 @@ export function createDb() {
     data: JSON.parse(m[3].replace(/''/g, "'")),
     sort: +m[4],
   }));
-  return { idiot_library: rows, idiot_results: [], idiot_groups: [], tokens: new Map(), requests: [], offline: false };
+  return { idiot_library: rows, idiot_results: [], idiot_groups: [], idiot_roles: [], tokens: new Map(), requests: [], offline: false };
 }
 
 const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -42,6 +42,15 @@ export async function mockSupabase(ctx, db) {
         const id = url.searchParams.get('id')?.replace(/^eq\./, '');
         db.idiot_results = db.idiot_results.filter((r) => r.id !== id);
         return route.fulfill({ status: 204, body: '' });
+      }
+    }
+    if (url.pathname === '/rest/v1/idiot_roles') {
+      if (method === 'GET') return json(route, db.idiot_roles);
+      if (method === 'POST') {
+        const b = req.postDataJSON();
+        const row = { ...b, id: `c-${db.idiot_roles.length + 1}`, created_at: new Date().toISOString() };
+        db.idiot_roles.push(row);
+        return json(route, { id: row.id }, 201);
       }
     }
     if (url.pathname === '/rest/v1/idiot_groups') {

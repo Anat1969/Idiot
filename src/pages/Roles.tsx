@@ -1,15 +1,20 @@
 import { motion } from 'framer-motion';
 import { ColorMap, type Dot } from '../components/ColorMap';
 import { Editable } from '../components/Editable';
-import { Explain, TraitBars, TraitRadar } from '../components/Traits';
+import { Explain, TraitRadar } from '../components/Traits';
 import { Tilt } from '../components/Tilt';
-import { TRAITS } from '../data/traits';
+import { GROWTH, NEED_LEVELS, TRAITS, traitInfo } from '../data/traits';
 import { blend, toneStyle } from '../lib/color';
 import { fullTraits, personTraits } from '../lib/compare';
 import { fit, pointFromTraits, roleTraits } from '../lib/engine';
 import { go } from '../lib/router';
 import { mePerson, useStore } from '../lib/store';
-import type { Point, Role, Traits } from '../lib/types';
+import { useAllRoles } from '../lib/roles';
+import { createRole } from '../lib/shared';
+import { toast } from '../lib/feedback';
+import { copyText } from '../lib/text';
+import { useState } from 'react';
+import type { Point, Role, Trait, Traits } from '../lib/types';
 
 type Candidate = Point & { id: string; name: string; role?: string; traits: Traits; source: string; href?: string };
 
@@ -32,15 +37,20 @@ function useCandidates(): Candidate[] {
 }
 
 export function Roles({ id }: { id?: string }) {
-  const roles = useStore((s) => s.library.roles);
-  const list = Object.values(roles);
-  const role = id ? roles[id] : undefined;
+  const list = useAllRoles();
+  if (id === 'new') return <NewRole />;
+  const role = id ? list.find((r) => r.id === id) : undefined;
   return (
     <div className="page">
       <header className="page-head">
-        <span className="label">תפקידים · {list.length} דמויות לדוגמה</span>
+        <span className="label">תפקידים · {list.length}</span>
         <h1>איזה תפקיד נשען על מה</h1>
-        <p className="lead">לכל תפקיד יש תכונות שההצלחה בו נשענת עליהן. כאן רואים מה כל תפקיד דורש, איפה הדמות לדוגמה שלו יושב על המפה, ומי מהאנשים שלך מתאים לו.</p>
+        <p className="lead">לכל תפקיד יש תכונות שההצלחה בו נשענת עליהן. בוחרים תפקיד ורואים מה הוא דורש, מי מתאים לו, ותוכנית אישית: מה כבר חזק אצלכם ומה כדאי לחזק. חסר תפקיד? מוסיפים אותו.</p>
+        <div className="row wrap">
+          <a className="btn solid" href="#/roles/new">
+            הוספת תפקיד
+          </a>
+        </div>
       </header>
       <div className="role-grid">
         {list.map((r, i) => {
@@ -51,6 +61,7 @@ export function Roles({ id }: { id?: string }) {
                 <button className={`role-card ${id === r.id ? 'on' : ''}`} style={toneStyle(pointFromTraits(t))} onClick={() => go(`/roles/${r.id}`, true)} aria-pressed={id === r.id}>
                   <span className="swatch" aria-hidden="true" />
                   <b>{r.name}</b>
+                  {r.custom && <small className="custom-tag">נוסף על ידי משתמש</small>}
                   <span className="needs">
                     {TRAITS.filter((x) => r.needs[x.key]).map((x) => (
                       <span key={x.key} className={`need tone-${x.color}`}>
@@ -64,7 +75,7 @@ export function Roles({ id }: { id?: string }) {
           );
         })}
       </div>
-      {role ? <RoleDetail role={role} key={role.id} /> : <p className="hint">בחרו תפקיד כדי לראות מה הוא דורש ומי מתאים לו.</p>}
+      {role ? <RoleDetail role={role} key={role.id} /> : id ? <p className="hint">התפקיד לא נמצא. אולי הוא עוד נטען, או שנמחק.</p> : <p className="hint">בחרו תפקיד כדי לראות מה הוא דורש, מי מתאים לו, ותוכנית אישית.</p>}
     </div>
   );
 }
@@ -84,19 +95,30 @@ function RoleDetail({ role }: { role: Role }) {
     <motion.article className="role-detail" style={toneStyle(at)} initial={{ opacity: 0, y: 30, rotateX: 8 }} animate={{ opacity: 1, y: 0, rotateX: 0 }}>
       <header>
         <span className="label">תפקיד</span>
-        <Editable section="roles" item={role.id} field="name" value={role.name} as="h2" />
-        <Editable section="roles" item={role.id} field="why" value={role.why} className="lead" />
+        {role.custom ? (
+          <>
+            <h2>{role.name}</h2>
+            {role.why && <p className="lead">{role.why}</p>}
+          </>
+        ) : (
+          <>
+            <Editable section="roles" item={role.id} field="name" value={role.name} as="h2" />
+            <Editable section="roles" item={role.id} field="why" value={role.why} className="lead" />
+          </>
+        )}
       </header>
       <div className="role-top">
         <section className="panel">
           <h3>מה התפקיד דורש</h3>
-          <TraitBars traits={ideal} />
+          <p className="muted">התכונות שההצלחה בתפקיד נשענת עליהן, וכמה כל אחת חשובה. תכונה שלא מופיעה כאן לא נדרשת בתפקיד.</p>
+          <NeedBars role={role} />
           <Explain>
-            <p>הפרופיל האידיאלי של התפקיד: כמה כל תכונה חשובה בו, באותה סקאלה של השאלון. ההתאמה של כל אדם נמדדת מול הפרופיל הזה.</p>
+            <p>ההתאמה של כל אדם נמדדת מול התכונות האלה, לפי החשיבות של כל אחת. תכונה "חיונית" משפיעה על ההתאמה פי שניים וחצי מתכונה ש"עוזרת".</p>
           </Explain>
         </section>
         <ColorMap dots={dots} size="md" caption="המעגל המקווקו: איפה נמצא מי שיש לו בדיוק את התכונות שהתפקיד דורש" />
       </div>
+      <Plan role={role} candidates={candidates} />
       {best && (
         <section className="panel">
           <h3>הפרופיל של התפקיד מול המתאים ביותר: {best.c.name}</h3>
@@ -132,5 +154,239 @@ function RoleDetail({ role }: { role: Role }) {
         </Explain>
       </section>
     </motion.article>
+  );
+}
+
+/** תוכנית אישית: מה כבר חזק, מה לחזק, איך, ועל מי להישען */
+function Plan({ role, candidates }: { role: Role; candidates: Candidate[] }) {
+  const real = candidates.filter((c) => c.source !== 'דמות לדוגמה');
+  const [who, setWho] = useState(real.find((c) => c.source === 'אני')?.id ?? real[0]?.id ?? '');
+  // הבחירה נשמרת, ואם היא עוד לא קיימת (האנשים נטענים) ברירת המחדל היא אני, או הראשון
+  const c = real.find((x) => x.id === who) ?? real.find((x) => x.source === 'אני') ?? real[0];
+  if (!real.length)
+    return (
+      <section className="panel plan">
+        <h3>מה צריך כדי להצליח בתפקיד</h3>
+        <p className="muted">כדי לקבל תוכנית אישית, עשו קודם את האבחון. אחר כך תראו כאן מה כבר חזק אצלכם, ומה כדאי לחזק.</p>
+        <a className="btn solid sm" href="#/me">
+          לאבחון
+        </a>
+      </section>
+    );
+  const ideal = roleTraits(role);
+  const needed = (Object.keys(role.needs) as Trait[]).filter((k) => (role.needs[k] ?? 0) > 0).sort((a, b) => (role.needs[b] ?? 0) - (role.needs[a] ?? 0));
+  const rows = c ? needed.map((k) => ({ k, need: ideal[k], have: c.traits[k], w: role.needs[k] ?? 0 })) : [];
+  const gaps = rows.filter((r) => r.need - r.have > 0.03).sort((a, b) => b.w * (b.need - b.have) - a.w * (a.need - a.have));
+  const strong = rows.filter((r) => r.need - r.have <= 0.03);
+  const leanOn = (k: Trait) =>
+    candidates
+      .filter((x) => x.id !== c?.id && x.source !== 'דמות לדוגמה')
+      .sort((a, b) => b.traits[k] - a.traits[k])
+      .slice(0, 2);
+  const f = c ? fit(c.traits, role) : 0;
+  const level = (v: number) => (v >= 0.5 ? 'חזק מאוד' : v >= 0.3 ? 'חזק' : v >= 0.15 ? 'בינוני' : 'חלש');
+
+  const text = c
+    ? [
+        `תוכנית ל${c.name}: ${role.name} (התאמה ${f} מתוך 100)`,
+        '',
+        strong.length ? `כבר חזק: ${strong.map((r) => traitInfo(r.k).label).join(', ')}` : '',
+        '',
+        ...gaps.slice(0, 3).flatMap((g) => [
+          `לחזק: ${traitInfo(g.k).label}`,
+          ...GROWTH[g.k].actions.map((a) => `- ${a}`),
+          `הרגל: ${GROWTH[g.k].habit}`,
+          leanOn(g.k).length ? `להישען על: ${leanOn(g.k).map((x) => x.name).join(', ')}` : '',
+          '',
+        ]),
+      ]
+        .filter((l, i, a) => l !== '' || a[i - 1] !== '')
+        .join('\n')
+    : '';
+
+  return (
+    <section className="panel plan">
+      <div className="row between">
+        <h3>מה צריך כדי להצליח בתפקיד</h3>
+        <label className="who-pick">
+          <span>התוכנית בשביל</span>
+          <select value={c?.id ?? ''} onChange={(e) => setWho(e.target.value)} aria-label="התוכנית בשביל">
+            {real.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+                {x.source === 'אני' ? ' (אני)' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {c && (
+        <>
+          <p className="muted">
+            ההתאמה של {c.name} לתפקיד: <b className="mono">{f}</b> מתוך 100. למטה: לכל תכונה שהתפקיד צריך, כמה היא בולטת אצל {c.name} לעומת מה שהתפקיד צריך. התכונות שכדאי לחזק מסודרות לפי מה שיקדם הכי הרבה.
+          </p>
+          <ul className="need-rows">
+            {rows.map((r) => (
+              <li key={r.k} className={`tone-${traitInfo(r.k).color}`}>
+                <span className="need-name">
+                  <b>{traitInfo(r.k).label}</b>
+                  <small>{NEED_LEVELS.slice().reverse().find((l) => r.w >= l.value)?.label} לתפקיד</small>
+                </span>
+                <span className="need-bar" aria-label={`יש ${Math.round(r.have * 100)}%, התפקיד צריך ${Math.round(r.need * 100)}%`}>
+                  <i style={{ width: `${Math.min(100, r.have * 100)}%` }} />
+                  <em style={{ insetInlineStart: `${Math.min(100, r.need * 100)}%` }} />
+                </span>
+                <span className="need-state">{r.need - r.have > 0.03 ? 'לחזק' : 'כבר חזק'}</span>
+              </li>
+            ))}
+          </ul>
+          <span className="tbar-legend">הפס: כמה התכונה בולטת אצל {c.name} ({rows.map((r) => `${traitInfo(r.k).label} ${level(r.have)}`).join(', ')}). הקו: מה התפקיד צריך.</span>
+
+          {strong.length > 0 && (
+            <p className="strong-line">
+              <b>כבר חזק: </b>
+              {strong.map((r) => traitInfo(r.k).label).join(', ')}. אלה נקודות המשען שלך בתפקיד.
+            </p>
+          )}
+
+          {gaps.length === 0 ? (
+            <p className="hint">כל מה שהתפקיד צריך כבר קיים. כדאי לחשוב איך להשתמש בזה, ומה לחזק כדי לגדול לתפקיד הבא.</p>
+          ) : (
+            <div className="growth">
+              {gaps.slice(0, 3).map((g, i) => (
+                <article key={g.k} className={`growth-card tone-${traitInfo(g.k).color}`}>
+                  <span className="label">צעד {i + 1}</span>
+                  <h4>לחזק: {traitInfo(g.k).label}</h4>
+                  <p className="muted">{traitInfo(g.k).text}.</p>
+                  <ol>
+                    {GROWTH[g.k].actions.map((a) => (
+                      <li key={a}>{a}</li>
+                    ))}
+                  </ol>
+                  <p className="habit">
+                    <b>הרגל: </b>
+                    {GROWTH[g.k].habit}
+                  </p>
+                  {leanOn(g.k).length > 0 && (
+                    <p className="lean">
+                      <b>על מי להישען: </b>
+                      {leanOn(g.k)
+                        .map((x) => x.name)
+                        .join(', ')}
+                      , החזקים ב{traitInfo(g.k).label} מבין האנשים שלך.
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+          <button className="btn ghost sm" onClick={() => copyText(text).then(() => toast('התוכנית הועתקה'), () => toast('ההעתקה נחסמה', 'error'))}>
+            העתקת התוכנית
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** הוספת תפקיד: שם, תיאור, וכמה כל תכונה חשובה בו */
+function NewRole() {
+  const [name, setName] = useState('');
+  const [why, setWhy] = useState('');
+  const [needs, setNeeds] = useState<Partial<Traits>>({});
+  const chosen = TRAITS.filter((t) => (needs[t.key] ?? 0) > 0);
+  const preview: Role = { id: 'preview', name: name || 'התפקיד החדש', why, needs };
+  const at = chosen.length ? pointFromTraits(roleTraits(preview)) : { x: 0, y: 0 };
+  return (
+    <div className="page">
+      <header className="page-head">
+        <a className="back" href="#/roles">
+          כל התפקידים
+        </a>
+        <span className="label">תפקיד חדש</span>
+        <h1>איזה תפקיד חסר?</h1>
+        <p className="lead">כותבים שם ותיאור קצר, ומסמנים לכל תכונה כמה היא חשובה להצלחה בתפקיד. המפה מראה איפה התפקיד יושב. התפקיד נשמר לכולם, ומיד אפשר לראות מי מתאים לו ותוכנית אישית.</p>
+      </header>
+      <div className="role-top">
+        <form
+          className="form panel"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!name.trim()) return toast('חסר שם לתפקיד', 'error');
+            if (chosen.length < 2) return toast('סמנו לפחות שתי תכונות שהתפקיד צריך', 'error');
+            const clean = Object.fromEntries(chosen.map((t) => [t.key, needs[t.key]]));
+            const id = await createRole(name, why, clean);
+            if (id) go(`/roles/${id}`, true);
+          }}
+        >
+          <label>
+            <span>שם התפקיד</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: מנהלת תיק לקוח" maxLength={60} />
+          </label>
+          <label>
+            <span>במה התפקיד עוסק (לא חובה)</span>
+            <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="משפט אחד: מה עושים בתפקיד ומה מצפים להשיג" maxLength={300} />
+          </label>
+          <fieldset className="need-pick">
+            <legend>כמה כל תכונה חשובה בתפקיד</legend>
+            {TRAITS.map((t) => (
+              <div key={t.key} className={`need-pick-row tone-${t.color}`}>
+                <span>
+                  <b>{t.label}</b>
+                  <small>{t.text}</small>
+                </span>
+                <div className="seg" role="radiogroup" aria-label={`כמה ${t.label} חשובה`}>
+                  {NEED_LEVELS.map((l) => (
+                    <button
+                      key={l.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={(needs[t.key] ?? 0) === l.value}
+                      className={(needs[t.key] ?? 0) === l.value ? 'on' : ''}
+                      onClick={() => setNeeds((n) => ({ ...n, [t.key]: l.value }))}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </fieldset>
+          <div className="row wrap">
+            <button className="btn solid" type="submit" disabled={!name.trim() || chosen.length < 2}>
+              שמירת התפקיד
+            </button>
+            <a className="btn ghost" href="#/roles">
+              ביטול
+            </a>
+          </div>
+        </form>
+        <div>
+          <ColorMap dots={chosen.length ? [{ id: 'new', label: name || 'התפקיד החדש', sub: 'תפקיד', kind: 'guess', ...at }] : []} size="md" caption={chosen.length ? 'כאן התפקיד יושב על המפה' : 'סמנו תכונות כדי לראות איפה התפקיד יושב'} />
+          {chosen.length > 0 && <NeedBars role={preview} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** מה התפקיד דורש, במילים: לכל תכונה נדרשת, כמה היא חשובה */
+function NeedBars({ role }: { role: Role }) {
+  const keys = (Object.keys(role.needs) as Trait[]).filter((k) => (role.needs[k] ?? 0) > 0).sort((a, b) => (role.needs[b] ?? 0) - (role.needs[a] ?? 0));
+  return (
+    <div className="tbars">
+      {keys.map((k) => {
+        const w = role.needs[k] ?? 0;
+        return (
+          <div key={k} className={`tbar tone-${traitInfo(k).color}`} title={traitInfo(k).text}>
+            <span className="tbar-name">{traitInfo(k).label}</span>
+            <span className="bar">
+              <motion.i initial={{ width: 0 }} animate={{ width: `${w * 100}%` }} transition={{ duration: 0.6 }} />
+            </span>
+            <span className="need-word">{NEED_LEVELS.slice().reverse().find((l) => w >= l.value)?.label}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }

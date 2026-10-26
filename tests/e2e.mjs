@@ -282,7 +282,7 @@ ok((await page.locator('.panel .label', { hasText: 'דמות לדוגמה' }).co
 // ---------- תפקידים ----------
 await page.locator('.topnav').getByRole('link', { name: 'תפקידים' }).click();
 await page.locator('.role-card').first().waitFor();
-ok((await page.locator('.role-card').count()) === 8, 'roles: eight roles');
+ok((await page.locator('.role-card').count()) === 8, 'roles: eight built-in roles');
 await page.locator('.role-card', { hasText: 'מנהלת פרויקט' }).click();
 await page.locator('.role-detail').waitFor();
 ok(page.url().endsWith('#/roles/pm'), 'roles: role in URL');
@@ -290,6 +290,34 @@ const top = page.locator('.fits.ranked li').first();
 ok((await top.innerText()).includes('דנה') && (await top.locator('.mono').innerText()) === '100', 'roles: the project-manager archetype fits 100');
 ok((await page.locator('.fits.ranked li', { hasText: 'ענת' }).count()) === 1, 'roles: I am ranked too');
 await shot(page, '11-roles.png');
+
+// ---------- תוכנית אישית לתפקיד ----------
+await page.locator('.plan').waitFor();
+ok((await page.locator('.plan select').inputValue()) === 'me', 'plan: defaults to me');
+ok((await page.locator('.need-rows li').count()) === 4, 'plan: one row for each trait the role needs');
+ok((await page.locator('.growth-card').count()) >= 1 && (await page.locator('.growth-card ol li').first().innerText()).length > 10, 'plan: concrete actions for traits to strengthen');
+ok(await page.locator('.strong-line').isVisible(), 'plan: what is already strong');
+await page.getByRole('button', { name: 'העתקת התוכנית' }).click();
+await page.getByText('התוכנית הועתקה').waitFor();
+ok((await clip(page)).startsWith('תוכנית לענת: מנהלת פרויקט'), 'plan: copy the plan');
+
+// ---------- הוספת תפקיד ----------
+await page.getByRole('link', { name: 'הוספת תפקיד' }).click();
+await page.getByPlaceholder('למשל: מנהלת תיק לקוח').fill('מתווכת בין צוותים');
+await page.getByPlaceholder(/משפט אחד/).fill('מחברת בין המשרד, הלקוח והקבלנים');
+ok(await page.getByRole('button', { name: 'שמירת התפקיד' }).isDisabled(), 'roles: save disabled until two traits are marked');
+await page.getByRole('radiogroup', { name: 'כמה יצירת קשרים חשובה' }).getByRole('radio', { name: 'חיוני' }).click();
+await page.getByRole('radiogroup', { name: 'כמה הקשבה חשובה' }).getByRole('radio', { name: 'חשוב' }).click();
+await page.getByRole('radiogroup', { name: 'כמה תכנון חשובה' }).getByRole('radio', { name: 'עוזר' }).click();
+ok((await page.locator('.dot-guess').count()) === 1, 'roles: the new role appears on the map while marking');
+await page.getByRole('button', { name: 'שמירת התפקיד' }).click();
+await page.getByText('התפקיד "מתווכת בין צוותים" נוסף').waitFor();
+const newRole = db.idiot_roles.find((r) => r.name === 'מתווכת בין צוותים');
+ok(newRole && newRole.needs.connect === 1 && newRole.needs.listen === 0.7 && newRole.needs.plan === 0.4, 'roles: new role saved with its trait weights');
+await page.locator('.role-detail').waitFor();
+ok(page.url().endsWith('#/roles/' + newRole.id) && (await page.locator('.role-detail h2').innerText()) === 'מתווכת בין צוותים', 'roles: opens the new role');
+ok((await page.locator('.need-rows li').count()) === 3, 'roles: personal plan works for a new role');
+ok((await page.locator('.role-card', { hasText: 'מתווכת בין צוותים' }).count()) === 1, 'roles: new role listed with the others');
 
 // ---------- מכשיר שני: נתן נכנס מקישור הזמנה של המשפחה ----------
 await page.locator('.topnav').getByRole('link', { name: 'המפה הכללית' }).click();

@@ -2,13 +2,14 @@
 import { toast } from './feedback';
 import { getState, setState } from './store';
 import { supa } from './supa';
-import type { Group, SharedResult } from './types';
+import type { Group, Role, SharedResult } from './types';
 import { groupsOf, joinGroup } from './store';
 
 const COLS = 'id,name,role,group_name,groups,x,y,mix,traits,created_at,updated_at';
 
 export async function loadShared() {
   loadGroups();
+  loadRoles();
   const res = await supa.from('idiot_results').select(COLS).order('created_at');
   if (res.error) {
     setState({ sharedSync: 'offline' });
@@ -144,4 +145,21 @@ export async function setGroupsFor(id: string, groups: string[]): Promise<boolea
     return false;
   }
   return true;
+}
+
+export async function loadRoles() {
+  const res = await supa.from('idiot_roles').select('id,name,why,needs,created_at').order('created_at');
+  if (!res.error) setState({ customRoles: (res.data as Role[]).map((r) => ({ ...r, custom: true })) });
+}
+
+/** תפקיד חדש שכל אחד יכול להוסיף. מחזיר את המזהה */
+export async function createRole(name: string, why: string, needs: Role['needs']): Promise<string | null> {
+  const ins = await supa.from('idiot_roles').insert({ name: name.trim().slice(0, 60), why: why.trim().slice(0, 300), needs }).select('id').single();
+  if (ins.error) {
+    toast('שמירת התפקיד נכשלה. נסו שוב', 'error');
+    return null;
+  }
+  await loadRoles();
+  toast(`התפקיד "${name.trim()}" נוסף`);
+  return (ins.data as { id: string }).id;
 }

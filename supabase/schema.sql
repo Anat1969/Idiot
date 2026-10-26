@@ -131,3 +131,19 @@ begin
 end; $$;
 revoke execute on function public.idiot_result_set_groups(uuid, text[]) from public;
 grant execute on function public.idiot_result_set_groups(uuid, text[]) to anon, authenticated;
+
+-- תפקידים שמשתמשים מוסיפים
+create table if not exists public.idiot_roles (
+  id text primary key default ('c-' || replace(gen_random_uuid()::text, '-', '')),
+  name text not null check (char_length(btrim(name)) between 1 and 60),
+  why text not null default '' check (char_length(why) <= 300),
+  needs jsonb not null check (jsonb_typeof(needs) = 'object' and pg_column_size(needs) < 1000),
+  created_at timestamptz not null default now()
+);
+alter table public.idiot_roles enable row level security;
+create policy idiot_roles_read on public.idiot_roles for select using (true);
+create policy idiot_roles_insert on public.idiot_roles for insert with check (true);
+create policy idiot_roles_delete on public.idiot_roles for delete using (public.idiot_is_admin());
+grant select on public.idiot_roles to anon, authenticated;
+grant insert (name, why, needs) on public.idiot_roles to anon, authenticated;
+grant delete on public.idiot_roles to anon, authenticated;
