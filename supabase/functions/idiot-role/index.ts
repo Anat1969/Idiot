@@ -1,6 +1,6 @@
 // מוקף: מומחה התאמת תפקידים. מקבל שם תפקיד (ותיאור לא חובה), ומחזיר אילו מתוך שמונה התכונות
 // התפקיד צריך, באיזו חשיבות ולמה. שומר את התפקיד בטבלה idiot_roles (source = 'ai').
-// שלוש שכבות: Claude (ANTHROPIC_API_KEY), מודל שפה דרך fal (FAL_API_KEY), ומאגר ידע מקומי (knowledge.ts).
+// ארבע שכבות: Claude (ANTHROPIC_API_KEY), Gemini (GEMINI_API_KEY, המפתח החינמי), מודל שפה דרך fal (FAL_API_KEY), ומאגר ידע מקומי (knowledge.ts).
 // ניתוח מהמאגר נשמר כ-source = 'auto', ומנותח מחדש על ידי המומחה בפעם הבאה שמבקשים את התפקיד והמומחה זמין.
 // פתוח לכל מבקר, עד HOURLY_LIMIT תפקידים בשעה.
 import Anthropic from "npm:@anthropic-ai/sdk";
@@ -117,7 +117,59 @@ function falKey(): string | undefined {
   return undefined;
 }
 
-/** 2. מודל שפה דרך fal, כשהמפתח של Claude לא זמין */
+/** 2. Gemini (המפתח החינמי של Google AI Studio) */
+function geminiKey(): string | undefined {
+  for (const n of ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_API_KEY"]) {
+    const v = Deno.env.get(n)?.trim();
+    if (v) return v;
+  }
+  for (const n of Object.keys(Deno.env.toObject())) {
+    if (!/gemini/i.test(n)) continue;
+    const v = Deno.env.get(n)?.trim();
+    if (v) return v;
+  }
+  return undefined;
+}
+
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"];
+async function viaGemini(brief: string): Promise<Out> {
+  const key = geminiKey();
+  if (!key) {
+    const names = Object.keys(Deno.env.toObject()).filter((n) => /gemini|google/i.test(n));
+    throw new Error(`no gemini key (names: ${names.join(",") || "none"})`);
+  }
+  const errs: string[] = [];
+  for (const model of GEMINI_MODELS) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: `${SYSTEM}\n\nהחזר JSON בלבד: אובייקט אחד עם המפתחות name, why, traits (מערך של {key, level, reason}).` }] },
+          contents: [{ role: "user", parts: [{ text: brief }] }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.3 },
+        }),
+      });
+      const raw = await r.text();
+      let text = "";
+      try {
+        const d = JSON.parse(raw);
+        text = (d?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("");
+      } catch { /* לא JSON */ }
+      const m = text.match(/\{[\s\S]*\}/);
+      if (r.ok && m) {
+        const out = JSON.parse(m[0]);
+        if (valid(out)) return out;
+      }
+      errs.push(`${model} ${r.status} ${raw.slice(0, 160)}`);
+    } catch (e) {
+      errs.push(`${model} ${e}`);
+    }
+  }
+  throw new Error(errs.join(" ; "));
+}
+
+/** 3. מודל שפה דרך fal, כשהמפתח של Claude לא זמין */
 const FAL_ROUTES: [string, string][] = [
   ["openrouter/router", "anthropic/claude-sonnet-4.5"],
   ["fal-ai/any-llm", "anthropic/claude-sonnet-4.5"],
@@ -189,6 +241,13 @@ Deno.serve(async (req) => {
   }
   if (!out) {
     try {
+      out = await viaGemini(brief);
+    } catch (err) {
+      last += ` | ${err instanceof Error ? err.message : err}`;
+    }
+  }
+  if (!out) {
+    try {
       out = await viaFal(brief);
     } catch (err) {
       last += ` | ${err instanceof Error ? err.message : err}`;
@@ -209,7 +268,7 @@ Deno.serve(async (req) => {
     row = { name, why: String(out.why || why).trim().slice(0, 300), needs, reasons, source: "ai" };
   } else {
     // המומחה לא זמין: ניתוח ראשוני מהמאגר
-    if (found) return json({ role: found, existing: true });
+    if (found) return json({ role: found, existing: true, detail: last.slice(0, 900) });
     const labels = Object.fromEntries(TRAITS.map((t) => [t.key, t.label]));
     const local = analyzeLocally(name, why, labels);
     if (!local) {

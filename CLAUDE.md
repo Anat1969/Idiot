@@ -55,7 +55,8 @@
 - Supabase: apply_migration מחכה לאישור ידני שפג אחרי דקה. execute_sql עובד ל-DDL בלי אישור, אבל פקודה עם delete או בדיקת RLS בטרנזקציה עלולה לבקש אישור. הטבלאות נוצרו כך ב-24.10.2026, והסכמה המלאה ב-supabase/schema.sql.
 - הסביבה לא מגיעה ל-appofapp-gh.vercel.app: להריץ את הבדיקות עם AI_MENU_JS=<עותק מקומי של public/ai-menu.js מהריפו AppOfApp-GH>.
 - הסביבה לא מגיעה ל-supabase.co: בדיקות דרך tests/supa-mock.mjs, שקורא את supabase/seed.sql.
-- פונקציית Edge נבדקת מהמסד: net.http_post עם מפתח anon, ואז select מ-net._http_response. כך התגלה (26.10.2026) שהמפתח ANTHROPIC_API_KEY בפרויקט לא תקף (401) ושחשבון fal נעול (TOP_UP). לכן idiot-role נופלת למאגר הידע (source = 'auto'), וכשמפתח תקף חוזר, "ניתוח מלא על ידי המומחה" משדרג את התפקיד.
+- פונקציית Edge נבדקת מהמסד: net.http_post עם מפתח anon, ואז select pg_sleep(25) ו-select מ-net._http_response (התור משותף לאפליקציות אחרות, לחכות לתשובה).
+- (ענת) מודל השפה בפועל: המפתח החינמי של Gemini (סוד בפרויקט, נמצא לפי GEMINI_API_KEY או כל שם שמכיל GEMINI). נבדק ב-26.10.2026: עובד. ANTHROPIC_API_KEY לא תקף (401) וחשבון fal נעול (TOP_UP), ולכן הסדר ב-idiot-role: Claude, Gemini, fal, מאגר הידע. תפקיד עם source = 'auto' משודרג בבקשה הבאה.
 - המקור של idiot-role ב-supabase/functions/idiot-role (index.ts ו-knowledge.ts). אחרי שינוי: deploy_edge_function עם שני הקבצים.
 
 ## A&I logo button
