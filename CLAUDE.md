@@ -25,6 +25,7 @@
 - קישור דרך גיטהאב, למקרה ש-Vercel לא זמין: הבנייה מתפרסמת לענף gh-pages (פעולת GitHub על כל עדכון של main, או npm run publish:gh). כתובת: https://anat1969.github.io/Idiot/ (GitHub Pages הופעל אוטומטית עם יצירת הענף). לכן כל הנתיבים יחסיים (base: './').
 - כפתורים, צ'יפים ושדות מרובעים, בלי פינות מעוגלות (סקיל anat-app-builder).
 - כל אחד מוסיף תפקיד (idiot_roles, פתוח לכולם): שם, תיאור, וחשיבות לכל תכונה בארבע דרגות (לא נדרש, עוזר, חשוב, חיוני). בכל תפקיד: "מה צריך כדי להצליח", תוכנית אישית לכל מי שבמאגר (אני כברירת מחדל): מה כבר חזק, שלושה צעדים לחיזוק עם פעולות והרגל (GROWTH ב-src/data/traits.ts), ועל מי להישען. דרישות התפקיד מוצגות במילים, לא באחוזים.
+- (ענת) לא מבקשים מהמשתמש לסמן תכונות לתפקיד: "אתה המומחה". תפקיד חדש = שם ותיאור, והפונקציה idiot-role מנתחת חשיבות ונימוק לכל תכונה (reasons). סימון ידני רק כאפשרות משנית. בכל תפקיד מוצג למה כל תכונה נדרשת, ומה פחות נדרש.
 - הדוגמאות הן ארכיטיפים של תפקידים (src/data/traits.ts), כדי להראות קשר בין תפקיד לתכונות. דף #/roles מדרג התאמה.
 
 ## נתונים
@@ -54,6 +55,8 @@
 - Supabase: apply_migration מחכה לאישור ידני שפג אחרי דקה. execute_sql עובד ל-DDL בלי אישור, אבל פקודה עם delete או בדיקת RLS בטרנזקציה עלולה לבקש אישור. הטבלאות נוצרו כך ב-24.10.2026, והסכמה המלאה ב-supabase/schema.sql.
 - הסביבה לא מגיעה ל-appofapp-gh.vercel.app: להריץ את הבדיקות עם AI_MENU_JS=<עותק מקומי של public/ai-menu.js מהריפו AppOfApp-GH>.
 - הסביבה לא מגיעה ל-supabase.co: בדיקות דרך tests/supa-mock.mjs, שקורא את supabase/seed.sql.
+- פונקציית Edge נבדקת מהמסד: net.http_post עם מפתח anon, ואז select מ-net._http_response. כך התגלה (26.10.2026) שהמפתח ANTHROPIC_API_KEY בפרויקט לא תקף (401) ושחשבון fal נעול (TOP_UP). לכן idiot-role נופלת למאגר הידע (source = 'auto'), וכשמפתח תקף חוזר, "ניתוח מלא על ידי המומחה" משדרג את התפקיד.
+- המקור של idiot-role ב-supabase/functions/idiot-role (index.ts ו-knowledge.ts). אחרי שינוי: deploy_edge_function עם שני הקבצים.
 
 ## A&I logo button
 The top bar holds only the app name (links home), content navigation, and ONE logo button "אד' ענת שטיבלמן A&I" (`<ai-menu>` from https://appofapp-gh.vercel.app/ai-menu.js). Every editing and development action (העתקת קישור, שיחת הפיתוח, פרויקט המחקר, התקנת האפליקציה, edit mode, add, delete) lives only inside it, never as loose buttons. Standard: https://github.com/Anat1969/AppOfApp-GH/blob/main/docs/ai-menu-standard.md

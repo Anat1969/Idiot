@@ -10,11 +10,31 @@ import { fit, pointFromTraits, roleTraits } from '../lib/engine';
 import { go } from '../lib/router';
 import { mePerson, useStore } from '../lib/store';
 import { useAllRoles } from '../lib/roles';
-import { createRole } from '../lib/shared';
+import { analyzeRole, createRole } from '../lib/shared';
 import { toast } from '../lib/feedback';
 import { copyText } from '../lib/text';
 import { useState } from 'react';
 import type { Point, Role, Trait, Traits } from '../lib/types';
+
+const SOURCE_TAG = { ai: 'נותח על ידי המומחה', auto: 'ניתוח ראשוני', manual: 'סומן על ידי משתמש' } as const;
+
+/** ניתוח ראשוני: מבקשים מהמומחה ניתוח מלא. אם הוא עדיין לא זמין, נשאר הניתוח הראשוני */
+function Reanalyze({ role }: { role: Role }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      className="btn ghost sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        await analyzeRole(role.name, role.why);
+        setBusy(false);
+      }}
+    >
+      {busy ? 'המומחה מנתח...' : 'ניתוח מלא על ידי המומחה'}
+    </button>
+  );
+}
 
 type Candidate = Point & { id: string; name: string; role?: string; traits: Traits; source: string; href?: string };
 
@@ -61,7 +81,7 @@ export function Roles({ id }: { id?: string }) {
                 <button className={`role-card ${id === r.id ? 'on' : ''}`} style={toneStyle(pointFromTraits(t))} onClick={() => go(`/roles/${r.id}`, true)} aria-pressed={id === r.id}>
                   <span className="swatch" aria-hidden="true" />
                   <b>{r.name}</b>
-                  {r.custom && <small className="custom-tag">נוסף על ידי משתמש</small>}
+                  {r.custom && <small className="custom-tag">{SOURCE_TAG[r.source ?? 'manual']}</small>}
                   <span className="needs">
                     {TRAITS.filter((x) => r.needs[x.key]).map((x) => (
                       <span key={x.key} className={`need tone-${x.color}`}>
@@ -110,7 +130,12 @@ function RoleDetail({ role }: { role: Role }) {
       <div className="role-top">
         <section className="panel">
           <h3>מה התפקיד דורש</h3>
-          <p className="muted">התכונות שההצלחה בתפקיד נשענת עליהן, וכמה כל אחת חשובה. תכונה שלא מופיעה כאן לא נדרשת בתפקיד.</p>
+          <p className="muted">
+            התכונות שההצלחה בתפקיד נשענת עליהן, וכמה כל אחת חשובה. תכונה שלא מופיעה כאן לא נדרשת בתפקיד.
+            {role.source === 'ai' && ' הניתוח נעשה על ידי המומחה, ולכל תכונה כתוב למה.'}
+            {role.source === 'auto' && ' זה ניתוח ראשוני לפי סוג התפקיד, מתוך מאגר הידע. כשהמומחה המלא זמין, אפשר לבקש ניתוח מדויק לתפקיד הזה.'}
+          </p>
+          {role.source === 'auto' && <Reanalyze role={role} />}
           <NeedBars role={role} />
           <Explain>
             <p>ההתאמה של כל אדם נמדדת מול התכונות האלה, לפי החשיבות של כל אחת. תכונה "חיונית" משפיעה על ההתאמה פי שניים וחצי מתכונה ש"עוזרת".</p>
@@ -289,14 +314,33 @@ function Plan({ role, candidates }: { role: Role; candidates: Candidate[] }) {
   );
 }
 
-/** הוספת תפקיד: שם, תיאור, וכמה כל תכונה חשובה בו */
+/** הוספת תפקיד: כותבים שם (ותיאור), והמומחה מנתח אילו תכונות התפקיד צריך. סימון ידני הוא אפשרות משנית */
 function NewRole() {
   const [name, setName] = useState('');
   const [why, setWhy] = useState('');
+  const [manual, setManual] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [needs, setNeeds] = useState<Partial<Traits>>({});
+  const all = useAllRoles();
   const chosen = TRAITS.filter((t) => (needs[t.key] ?? 0) > 0);
-  const preview: Role = { id: 'preview', name: name || 'התפקיד החדש', why, needs };
+  const preview: Role = {
+    id: 'preview',
+    name: name || 'התפקיד החדש',
+    why,
+    needs,
+  };
   const at = chosen.length ? pointFromTraits(roleTraits(preview)) : { x: 0, y: 0 };
+  const same = all.find((r) => r.name.trim() === name.trim());
+
+  const analyze = async () => {
+    if (!name.trim()) return toast('חסר שם לתפקיד', 'error');
+    if (same) return go(`/roles/${same.id}`, true);
+    setBusy(true);
+    const id = await analyzeRole(name, why);
+    setBusy(false);
+    if (id) go(`/roles/${id}`, true);
+  };
+
   return (
     <div className="page">
       <header className="page-head">
@@ -305,13 +349,17 @@ function NewRole() {
         </a>
         <span className="label">תפקיד חדש</span>
         <h1>איזה תפקיד חסר?</h1>
-        <p className="lead">כותבים שם ותיאור קצר, ומסמנים לכל תכונה כמה היא חשובה להצלחה בתפקיד. המפה מראה איפה התפקיד יושב. התפקיד נשמר לכולם, ומיד אפשר לראות מי מתאים לו ותוכנית אישית.</p>
+        <p className="lead">
+          כותבים את שם התפקיד, ואם רוצים גם משפט על מה עושים בו. המומחה מנתח אילו מתוך שמונה התכונות ההצלחה בתפקיד נשענת עליהן, כמה כל אחת חשובה, ולמה. התפקיד נשמר לכולם, ומיד רואים מי מתאים לו ותוכנית אישית.
+        </p>
       </header>
       <div className="role-top">
         <form
           className="form panel"
+          aria-busy={busy}
           onSubmit={async (e) => {
             e.preventDefault();
+            if (!manual) return analyze();
             if (!name.trim()) return toast('חסר שם לתפקיד', 'error');
             if (chosen.length < 2) return toast('סמנו לפחות שתי תכונות שהתפקיד צריך', 'error');
             const clean = Object.fromEntries(chosen.map((t) => [t.key, needs[t.key]]));
@@ -321,49 +369,105 @@ function NewRole() {
         >
           <label>
             <span>שם התפקיד</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: מנהלת תיק לקוח" maxLength={60} />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: מנהלת תיק לקוח" maxLength={60} disabled={busy} />
           </label>
           <label>
-            <span>במה התפקיד עוסק (לא חובה)</span>
-            <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="משפט אחד: מה עושים בתפקיד ומה מצפים להשיג" maxLength={300} />
+            <span>במה התפקיד עוסק (לא חובה, אבל עוזר לדייק)</span>
+            <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="משפט אחד: מה עושים בתפקיד ומה מצפים להשיג" maxLength={300} disabled={busy} />
           </label>
-          <fieldset className="need-pick">
-            <legend>כמה כל תכונה חשובה בתפקיד</legend>
-            {TRAITS.map((t) => (
-              <div key={t.key} className={`need-pick-row tone-${t.color}`}>
-                <span>
-                  <b>{t.label}</b>
-                  <small>{t.text}</small>
-                </span>
-                <div className="seg" role="radiogroup" aria-label={`כמה ${t.label} חשובה`}>
-                  {NEED_LEVELS.map((l) => (
-                    <button
-                      key={l.label}
-                      type="button"
-                      role="radio"
-                      aria-checked={(needs[t.key] ?? 0) === l.value}
-                      className={(needs[t.key] ?? 0) === l.value ? 'on' : ''}
-                      onClick={() => setNeeds((n) => ({ ...n, [t.key]: l.value }))}
-                    >
-                      {l.label}
-                    </button>
-                  ))}
-                </div>
+          {same && <p className="hint">התפקיד "{same.name}" כבר קיים. הכפתור יעביר אליו.</p>}
+
+          {!manual ? (
+            <>
+              <div className="row wrap">
+                <button className="btn solid" type="submit" disabled={!name.trim() || busy}>
+                  {busy ? 'המומחה מנתח את התפקיד...' : same ? 'מעבר לתפקיד' : 'ניתוח התפקיד'}
+                </button>
+                <a className="btn ghost" href="#/roles">
+                  ביטול
+                </a>
               </div>
-            ))}
-          </fieldset>
-          <div className="row wrap">
-            <button className="btn solid" type="submit" disabled={!name.trim() || chosen.length < 2}>
-              שמירת התפקיד
-            </button>
-            <a className="btn ghost" href="#/roles">
-              ביטול
-            </a>
-          </div>
+              {busy && (
+                <p className="analyzing" role="status">
+                  בודק מה מבדיל הצלחה מכישלון בתפקיד הזה ביום יום, ומדרג כל תכונה: לא נדרש, עוזר, חשוב או חיוני. זה לוקח כמה שניות.
+                </p>
+              )}
+              <button type="button" className="link-btn" onClick={() => setManual(true)} disabled={busy}>
+                מכירים את התפקיד מקרוב? אפשר לסמן את התכונות בעצמכם
+              </button>
+            </>
+          ) : (
+            <>
+              <fieldset className="need-pick">
+                <legend>כמה כל תכונה חשובה בתפקיד</legend>
+                {TRAITS.map((t) => (
+                  <div key={t.key} className={`need-pick-row tone-${t.color}`}>
+                    <span>
+                      <b>{t.label}</b>
+                      <small>{t.text}</small>
+                    </span>
+                    <div className="seg" role="radiogroup" aria-label={`כמה ${t.label} חשובה`}>
+                      {NEED_LEVELS.map((l) => (
+                        <button
+                          key={l.label}
+                          type="button"
+                          role="radio"
+                          aria-checked={(needs[t.key] ?? 0) === l.value}
+                          className={(needs[t.key] ?? 0) === l.value ? 'on' : ''}
+                          onClick={() => setNeeds((n) => ({ ...n, [t.key]: l.value }))}
+                        >
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </fieldset>
+              <div className="row wrap">
+                <button className="btn solid" type="submit" disabled={!name.trim() || chosen.length < 2}>
+                  שמירת התפקיד
+                </button>
+                <button type="button" className="btn ghost" onClick={() => setManual(false)}>
+                  חזרה לניתוח של המומחה
+                </button>
+              </div>
+            </>
+          )}
         </form>
         <div>
-          <ColorMap dots={chosen.length ? [{ id: 'new', label: name || 'התפקיד החדש', sub: 'תפקיד', kind: 'guess', ...at }] : []} size="md" caption={chosen.length ? 'כאן התפקיד יושב על המפה' : 'סמנו תכונות כדי לראות איפה התפקיד יושב'} />
-          {chosen.length > 0 && <NeedBars role={preview} />}
+          {manual ? (
+            <>
+              <ColorMap
+                dots={
+                  chosen.length
+                    ? [
+                        {
+                          id: 'new',
+                          label: name || 'התפקיד החדש',
+                          sub: 'תפקיד',
+                          kind: 'guess',
+                          ...at,
+                        },
+                      ]
+                    : []
+                }
+                size="md"
+                caption={chosen.length ? 'כאן התפקיד יושב על המפה' : 'סמנו תכונות כדי לראות איפה התפקיד יושב'}
+              />
+              {chosen.length > 0 && <NeedBars role={preview} />}
+            </>
+          ) : (
+            <section className="panel how">
+              <h3>מה המומחה עושה</h3>
+              <ol>
+                <li>קורא את שם התפקיד והתיאור.</li>
+                <li>בוחר את 2 עד 4 התכונות שההצלחה בתפקיד באמת נשענת עליהן, לא את מה שנשמע טוב בכל תפקיד.</li>
+                <li>מדרג כל תכונה (לא נדרש, עוזר, חשוב, חיוני) ומסביר במשפט אחד למה.</li>
+                <li>ממקם את התפקיד על המפה, ומחשב לכל אחד התאמה ותוכנית אישית.</li>
+              </ol>
+              <p className="muted">תפקיד שכבר נותח לא מנותח שוב: מקבלים את הניתוח הקיים.</p>
+            </section>
+          )}
         </div>
       </div>
     </div>
@@ -373,6 +477,7 @@ function NewRole() {
 /** מה התפקיד דורש, במילים: לכל תכונה נדרשת, כמה היא חשובה */
 function NeedBars({ role }: { role: Role }) {
   const keys = (Object.keys(role.needs) as Trait[]).filter((k) => (role.needs[k] ?? 0) > 0).sort((a, b) => (role.needs[b] ?? 0) - (role.needs[a] ?? 0));
+  const rest = TRAITS.map((t) => t.key).filter((k) => !keys.includes(k) && role.reasons?.[k]);
   return (
     <div className="tbars">
       {keys.map((k) => {
@@ -383,10 +488,36 @@ function NeedBars({ role }: { role: Role }) {
             <span className="bar">
               <motion.i initial={{ width: 0 }} animate={{ width: `${w * 100}%` }} transition={{ duration: 0.6 }} />
             </span>
-            <span className="need-word">{NEED_LEVELS.slice().reverse().find((l) => w >= l.value)?.label}</span>
+            <span className="need-word">
+              {
+                NEED_LEVELS.slice()
+                  .reverse()
+                  .find((l) => w >= l.value)?.label
+              }
+            </span>
+            {role.reasons?.[k] && <p className="tbar-reason">{role.reasons[k]}</p>}
           </div>
         );
       })}
+      {rest.length > 0 && (
+        <details className="not-needed">
+          <summary>ומה פחות נדרש בתפקיד ({rest.length} תכונות)</summary>
+          <ul>
+            {[...new Set(rest.map((k) => role.reasons?.[k] ?? ''))].map((reason) => (
+              <li key={reason}>
+                <b>
+                  {rest
+                    .filter((k) => role.reasons?.[k] === reason)
+                    .map((k) => traitInfo(k).label)
+                    .join(', ')}
+                  :{' '}
+                </b>
+                {reason}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
