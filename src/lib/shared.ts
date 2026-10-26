@@ -148,7 +148,7 @@ export async function setGroupsFor(id: string, groups: string[]): Promise<boolea
 }
 
 export async function loadRoles() {
-  const res = await supa.from('idiot_roles').select('id,name,why,needs,created_at').order('created_at');
+  const res = await supa.from('idiot_roles').select('id,name,why,needs,reasons,source,created_at').order('created_at');
   if (!res.error) setState({ customRoles: (res.data as Role[]).map((r) => ({ ...r, custom: true })) });
 }
 
@@ -162,4 +162,35 @@ export async function createRole(name: string, why: string, needs: Role['needs']
   await loadRoles();
   toast(`התפקיד "${name.trim()}" נוסף`);
   return (ins.data as { id: string }).id;
+}
+
+/** המומחה מנתח תפקיד לפי השם (והתיאור): אילו תכונות נדרשות, באיזו מידה ולמה. שומר לכולם ומחזיר את המזהה */
+export async function analyzeRole(name: string, why: string): Promise<string | null> {
+  const res = await supa.functions.invoke('idiot-role', { body: { name: name.trim(), why: why.trim() } });
+  if (res.error || !res.data?.role?.id) {
+    let msg = 'הניתוח לא הצליח. נסו שוב, או סמנו בעצמכם';
+    const ctx = (res.error as { context?: Response } | null)?.context;
+    try {
+      const body = ctx ? await ctx.json() : null;
+      if (body?.error && /[\u0590-\u05FF]/.test(body.error)) msg = body.error;
+    } catch {
+      /* נשארים עם ההודעה הכללית */
+    }
+    toast(msg, 'error');
+    return null;
+  }
+  await loadRoles();
+  const r = res.data.role as Role;
+  const msg =
+    res.data.existing && r.source === 'auto'
+      ? 'המומחה המלא עוד לא זמין. בינתיים נשאר הניתוח הראשוני'
+      : res.data.existing
+        ? `התפקיד "${r.name}" כבר נותח, הנה הוא`
+        : res.data.upgraded
+          ? `המומחה ניתח מחדש את "${r.name}"`
+          : r.source === 'auto'
+            ? `התפקיד "${r.name}" נוסף בניתוח ראשוני`
+            : `התפקיד "${r.name}" נותח ונוסף`;
+  toast(msg);
+  return r.id;
 }

@@ -301,10 +301,51 @@ await page.getByRole('button', { name: 'העתקת התוכנית' }).click();
 await page.getByText('התוכנית הועתקה').waitFor();
 ok((await clip(page)).startsWith('תוכנית לענת: מנהלת פרויקט'), 'plan: copy the plan');
 
-// ---------- הוספת תפקיד ----------
+// ---------- הוספת תפקיד: המומחה מנתח ----------
+await page.getByRole('link', { name: 'הוספת תפקיד' }).click();
+ok((await page.locator('.need-pick').count()) === 0, 'roles: no manual marking by default, the expert analyzes');
+await page.getByPlaceholder('למשל: מנהלת תיק לקוח').fill('נכשל');
+expectNetErrors = true; // 422 מכוון
+await page.getByRole('button', { name: 'ניתוח התפקיד' }).click();
+await page.getByText('הניתוח לא הצליח. נסו להוסיף תיאור קצר לתפקיד.').waitFor();
+expectNetErrors = false;
+ok(page.url().endsWith('#/roles/new'), 'roles: a failed analysis stays on the form with a clear message');
+await page.getByPlaceholder('למשל: מנהלת תיק לקוח').fill('מתאמת BIM');
+await page.getByRole('button', { name: 'ניתוח התפקיד' }).click();
+await page.getByRole('button', { name: 'המומחה מנתח את התפקיד...' }).waitFor();
+ok(await page.locator('.analyzing').isVisible(), 'roles: explains what happens while analyzing');
+await page.getByText('התפקיד "מתאמת BIM" נותח ונוסף').waitFor();
+await page.locator('.role-detail').waitFor();
+const aiRole = db.idiot_roles.find((r) => r.name === 'מתאמת BIM');
+ok(aiRole && page.url().endsWith('#/roles/' + aiRole.id), 'roles: opens the analyzed role');
+ok((await page.locator('.role-detail .tbar').count()) === 3 && (await page.locator('.tbar-reason').first().innerText()) === 'כל סטייה במודל הופכת לבעיה באתר', 'roles: each needed trait shows why');
+await page.locator('.role-detail').scrollIntoViewIfNeeded();
+await page.locator('.role-detail').screenshot({ path: join(OUT, '15-role-ai.png') });
+ok((await page.locator('.not-needed li').count()) === 1, 'roles: what is less needed, with reasons');
+ok((await page.locator('.role-card', { hasText: 'מתאמת BIM' }).locator('.custom-tag').innerText()) === 'נותח על ידי המומחה', 'roles: card says the expert analyzed it');
+ok((await page.locator('.need-rows li').count()) === 3, 'roles: personal plan for the analyzed role');
+await page.getByRole('link', { name: 'הוספת תפקיד' }).click();
+await page.getByPlaceholder('למשל: מנהלת תיק לקוח').fill('מתאמת BIM');
+await page.getByRole('button', { name: 'מעבר לתפקיד' }).click();
+await page.locator('.role-detail').waitFor();
+ok(page.url().endsWith('#/roles/' + aiRole.id) && db.idiot_roles.filter((r) => r.name === 'מתאמת BIM').length === 1, 'roles: an existing role is opened, not analyzed again');
+
+// ניתוח ראשוני (כשהמומחה המלא לא זמין): מסומן ככזה, ואפשר לבקש ניתוח מלא
+await page.getByRole('link', { name: 'הוספת תפקיד' }).click();
+await page.getByPlaceholder('למשל: מנהלת תיק לקוח').fill('מתאם ראשוני');
+await page.getByRole('button', { name: 'ניתוח התפקיד' }).click();
+await page.getByText('התפקיד "מתאם ראשוני" נוסף בניתוח ראשוני').waitFor();
+await page.locator('.role-detail').waitFor();
+ok((await page.locator('.role-card', { hasText: 'מתאם ראשוני' }).locator('.custom-tag').innerText()) === 'ניתוח ראשוני', 'roles: a preliminary analysis is labeled as such');
+await page.getByRole('button', { name: 'ניתוח מלא על ידי המומחה' }).click();
+await page.getByText('המומחה המלא עוד לא זמין. בינתיים נשאר הניתוח הראשוני').waitFor();
+ok(true, 'roles: asking for a full analysis says honestly when the expert is not available');
+
+// ---------- הוספת תפקיד: סימון ידני (אפשרות משנית) ----------
 await page.getByRole('link', { name: 'הוספת תפקיד' }).click();
 await page.getByPlaceholder('למשל: מנהלת תיק לקוח').fill('מתווכת בין צוותים');
 await page.getByPlaceholder(/משפט אחד/).fill('מחברת בין המשרד, הלקוח והקבלנים');
+await page.getByRole('button', { name: /לסמן את התכונות בעצמכם/ }).click();
 ok(await page.getByRole('button', { name: 'שמירת התפקיד' }).isDisabled(), 'roles: save disabled until two traits are marked');
 await page.getByRole('radiogroup', { name: 'כמה יצירת קשרים חשובה' }).getByRole('radio', { name: 'חיוני' }).click();
 await page.getByRole('radiogroup', { name: 'כמה הקשבה חשובה' }).getByRole('radio', { name: 'חשוב' }).click();

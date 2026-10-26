@@ -44,6 +44,27 @@ export async function mockSupabase(ctx, db) {
         return route.fulfill({ status: 204, body: '' });
       }
     }
+    // המומחה לתפקידים (פונקציית Edge idiot-role): ניתוח קבוע לבדיקה
+    if (url.pathname === '/functions/v1/idiot-role') {
+      const h = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' };
+      if (method === 'OPTIONS') return route.fulfill({ status: 200, headers: h, body: 'ok' });
+      const b = req.postDataJSON();
+      const found = db.idiot_roles.find((r) => r.name === b.name);
+      if (found) return route.fulfill({ status: 200, headers: h, contentType: 'application/json', body: JSON.stringify({ role: found, existing: true }) });
+      if (b.name === 'נכשל') return route.fulfill({ status: 422, headers: h, contentType: 'application/json', body: JSON.stringify({ error: 'הניתוח לא הצליח. נסו להוסיף תיאור קצר לתפקיד.' }) });
+      await new Promise((r) => setTimeout(r, 400));
+      const row = {
+        id: `ai-${db.idiot_roles.length + 1}`,
+        name: b.name,
+        why: b.why || 'מתאמת בין המודלים של כל היועצים ומוודאת שהם מתחברים',
+        needs: { thorough: 1, plan: 0.7, connect: 0.4 },
+        reasons: { thorough: 'כל סטייה במודל הופכת לבעיה באתר', plan: 'צריך לוח זמנים של מסירות מכל יועץ', connect: 'עובדת מול יועצים רבים', inspire: 'התפקיד לא דורש לסחוף אנשים' },
+        source: b.name.includes('ראשוני') ? 'auto' : 'ai',
+        created_at: new Date().toISOString(),
+      };
+      db.idiot_roles.push(row);
+      return route.fulfill({ status: 200, headers: h, contentType: 'application/json', body: JSON.stringify({ role: row }) });
+    }
     if (url.pathname === '/rest/v1/idiot_roles') {
       if (method === 'GET') return json(route, db.idiot_roles);
       if (method === 'POST') {

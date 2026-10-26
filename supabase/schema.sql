@@ -147,3 +147,9 @@ create policy idiot_roles_delete on public.idiot_roles for delete using (public.
 grant select on public.idiot_roles to anon, authenticated;
 grant insert (name, why, needs) on public.idiot_roles to anon, authenticated;
 grant delete on public.idiot_roles to anon, authenticated;
+-- המומחה לתפקידים (פונקציית Edge idiot-role): למה כל תכונה ברמה שלה, ומי ניתח.
+-- ai = מודל שפה, auto = מאגר הידע (knowledge.ts) כשהמודל לא זמין, manual = סומן ביד. רק הפונקציה (service role) כותבת reasons ו-source.
+alter table public.idiot_roles add column if not exists reasons jsonb not null default '{}'::jsonb;
+alter table public.idiot_roles add column if not exists source text not null default 'manual';
+alter table public.idiot_roles drop constraint if exists idiot_roles_source_check;
+alter table public.idiot_roles add constraint idiot_roles_source_check check (source in ('manual','ai','auto'));

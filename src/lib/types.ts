@@ -30,7 +30,18 @@ export type Traits = Record<Trait, number>;
 export type Question = { id: string; text: string; options: { label: string; color: Color; trait: Trait }[] };
 
 /** תפקיד: אילו תכונות נדרשות להצלחה בו, ובאיזה משקל (0 עד 1) */
-export type Role = { id: string; name: string; why: string; needs: Partial<Traits>; /** תפקיד שמשתמש הוסיף (טבלה idiot_roles) */ custom?: boolean };
+export type Role = {
+  id: string;
+  name: string;
+  why: string;
+  needs: Partial<Traits>;
+  /** תפקיד שמשתמש הוסיף (טבלה idiot_roles) */
+  custom?: boolean;
+  /** למה כל תכונה ברמה הזו (מהמומחה) */
+  reasons?: Partial<Record<Trait, string>>;
+  /** ai = המומחה ניתח, auto = ניתוח ראשוני ממאגר הידע (המומחה לא היה זמין), manual = סומן ביד */
+  source?: 'ai' | 'auto' | 'manual';
+};
 
 export type Library = {
   profiles: Record<Color, Profile>;

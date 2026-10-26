@@ -609,3 +609,15 @@ input:not([type]), input[type='text'], textarea, .tag, .linkish { border-radius:
   .seg button { padding: 6px 7px; font-size: 12px; }
 }
 .tbar .need-word { font-size: 12px; text-align: end; color: var(--ink-2); }
+
+/* המומחה לתפקידים */
+.tbar .tbar-reason { grid-column: 1 / -1; margin: -4px 0 6px; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.not-needed { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+.not-needed summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.not-needed ul { margin: 6px 0 0; padding-inline-start: 18px; display: grid; gap: 6px; line-height: 1.5; }
+.link-btn { background: none; border: 0; padding: 4px 0; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font: inherit; font-size: 14px; justify-self: start; text-align: start; }
+.link-btn:disabled { opacity: .5; cursor: default; }
+.analyzing { margin: 0; padding: 12px 14px; border-inline-start: 3px solid var(--ink); background: rgba(255,255,255,.5); font-size: 14px; line-height: 1.6; animation: analyzing 1.6s ease-in-out infinite; }
+@keyframes analyzing { 50% { opacity: .55; } }
+.how ol { margin: 8px 0; padding-inline-start: 20px; display: grid; gap: 6px; line-height: 1.55; }
+.role-card.on .custom-tag { color: rgba(255,255,255,.8); }
