@@ -6,6 +6,7 @@ import { COLORS } from '../data/starter';
 import { selfQuestions } from '../data/traits';
 import { colorAt, fit, gap, gapText, modelTraits, ranked, score, similarity } from '../lib/engine';
 import { averageTraits, fullTraits } from '../lib/compare';
+import { useAllRoles } from '../lib/roles';
 import { createGroup, publishMe, removeMe } from '../lib/shared';
 import { Explain, TraitBars, TraitRadar } from '../components/Traits';
 import { traitInfo } from '../data/traits';
@@ -127,6 +128,7 @@ export function Me() {
 
 function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: () => void; onOther: () => void }) {
   const lib = useStore((s) => s.library);
+  const allRoles = useAllRoles();
   const myName = useStore((s) => s.myName);
   const myRole = useStore((s) => s.myRole);
   const shared = useStore((s) => s.shared);
@@ -170,7 +172,7 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
         .sort((a, b) => b.sim - a.sim)
         .slice(0, 3)
     : [];
-  const roleFits = traits ? Object.values(lib.roles).map((role) => ({ role, f: fit(traits, role) })).sort((a, b) => b.f - a.f) : [];
+  const roleFits = traits ? allRoles.map((role) => ({ role, f: fit(traits, role) })).sort((a, b) => b.f - a.f) : [];
   const order = traits ? ranked(traits) : [];
 
   const manual = [
@@ -394,7 +396,7 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
               <ul className="fits">
                 {roleFits.slice(0, 4).map(({ role, f }) => (
                   <li key={role.id}>
-                    <span>{role.name}</span>
+                    <a href={`#/roles/${role.id}`}>{role.name}</a>
                     <span className="bar">
                       <i style={{ width: `${f}%` }} />
                     </span>
@@ -406,7 +408,7 @@ function Result({ readings, onAgain, onOther }: { readings: Reading[]; onAgain: 
                 <p>כל תפקיד דורש כמה תכונות במשקלים שונים. ההתאמה (0 עד 100) בודקת כמה מהפרופיל הנדרש קיים אצלך, לפי המשקלים. היא לא מנבאת הצלחה: היא מראה על אילו תכונות התפקיד יישען, ואיפה תצטרך תמיכה.</p>
               </Explain>
               <a className="btn ghost sm" href="#/roles">
-                כל התפקידים
+                כל התפקידים, ותוכנית אישית לכל אחד
               </a>
             </section>
           </div>

@@ -12,6 +12,7 @@ import { clearDemo, deletePerson, exportData, importData, savePerson, useStore }
 import { describe } from '../lib/text';
 import { Explain, TraitBars } from '../components/Traits';
 import { personTraits } from '../lib/compare';
+import { useAllRoles } from '../lib/roles';
 import { coords, toneStyle } from '../lib/color';
 import type { Person, Point, Traits } from '../lib/types';
 
@@ -216,6 +217,7 @@ function PersonPage({ person }: { person: Person }) {
   const reading = useStore((s) => s.readings[0]);
   const myName = useStore((s) => s.myName);
   const myRole = useStore((s) => s.myRole);
+  const allRoles = useAllRoles();
   const [moving, setMoving] = useState(false);
   const [details, setDetails] = useState(false);
   const [name, setName] = useState(person.name);
@@ -251,7 +253,7 @@ function PersonPage({ person }: { person: Person }) {
   ];
   const cc = coords(person);
   const pt = personTraits(person);
-  const fits = Object.values(lib.roles).map((role) => ({ role, f: fit(pt, role) })).sort((a, b) => b.f - a.f);
+  const fits = allRoles.map((role) => ({ role, f: fit(pt, role) })).sort((a, b) => b.f - a.f);
 
   return (
     <div className="page">

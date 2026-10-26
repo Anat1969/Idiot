@@ -3,7 +3,7 @@ import { goals, pairs, profiles } from '../data/starter';
 import { archetypes, roles } from '../data/traits';
 import { pointFromTraits, roleTraits } from './engine';
 import { uid } from './id';
-import type { Group, Library, Person, Reading, SharedResult, Team } from './types';
+import type { Group, Library, Person, Reading, Role, SharedResult, Team } from './types';
 
 export type SyncStatus = 'loading' | 'ready' | 'offline';
 
@@ -30,6 +30,8 @@ type State = {
   myGroups: string[];
   /** כל הקבוצות שנפתחו, מ-Supabase */
   groups: Group[];
+  /** תפקידים שמשתמשים הוסיפו, מ-Supabase */
+  customRoles: Role[];
   /** התוצאה שלי במפה הכללית: המזהה, והמפתח שמאפשר לעדכן אותה רק מהמכשיר הזה */
   myShared: { id: string; token: string } | null;
   /** יש שינוי שעוד לא הגיע למפה הכללית (למשל כשאין חיבור) */
@@ -50,6 +52,7 @@ const KEYS: Partial<Record<keyof State, string>> = {
   group: 'idiot.group',
   myGroups: 'idiot.myGroups',
   groups: 'idiot.groups',
+  customRoles: 'idiot.customRoles',
   myShared: 'idiot.myShared',
   publishPending: 'idiot.publishPending',
   optOut: 'idiot.optOut',
@@ -110,6 +113,7 @@ let state: State = {
   group: urlGroup ?? read(KEYS.group, ''),
   myGroups: [...new Set([...read<string[]>(KEYS.myGroups, read<string>(KEYS.group, '') ? [read<string>(KEYS.group, '')] : []), ...(urlGroup ? [urlGroup] : [])])].filter(Boolean),
   groups: read(KEYS.groups, []),
+  customRoles: read(KEYS.customRoles, []),
   myShared: read(KEYS.myShared, null),
   publishPending: read(KEYS.publishPending, false),
   optOut: read(KEYS.optOut, false),
